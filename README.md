@@ -1,3 +1,3 @@
-# Project Title
+# MaisonGuida AI Assistant
 
-A brief description of what this project does and who it's for.
+This is a chatbot for the [MaisonGuida](https://maisonguida.com) website.
