@@ -7,6 +7,6 @@
     "openai": "^4.82.0"
   },
   "scripts": {
-    "start": "node server.js"
+    "start": "node src/server.js"
   }
 }
