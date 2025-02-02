@@ -11,6 +11,9 @@ Since your chatbot handles FAQs + product data from Google Sheets + AI responses
 
 This way, the chatbot searches for relevant info first before sending a user’s query to GPT, saving API costs & improving accuracy. 🚀
 
+Github
+Railway
+
 Test Your Chat API
-node server.js
+node src/server.js
 curl -X POST http://localhost:3001/chat -H "Content-Type: application/json" -d '{"message": "Hello!"}'
