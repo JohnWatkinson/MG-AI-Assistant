@@ -17,3 +17,6 @@ Railway
 Test Your Chat API
 node src/server.js
 curl -X POST http://localhost:3001/chat -H "Content-Type: application/json" -d '{"message": "Hello!"}'
+
+    mg-ai-assistant-production.up.railway.app
+    curl -X POST https://mg-ai-assistant-production.up.railway.app/chat -H "Content-Type: application/json" -d '{"message": "Hello!"}'
