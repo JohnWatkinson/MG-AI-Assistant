@@ -17,7 +17,22 @@ const openai = new OpenAI({
 });
 
 // Initialize Google Sheets API client
-const sheets = google.sheets("v4");
+let auth;
+if (process.env.NODE_ENV === 'production') {
+  // Use base64 encoded credentials in production
+  auth = new google.auth.GoogleAuth({
+    credentials: JSON.parse(Buffer.from(process.env.GOOGLE_APPLICATION_CREDENTIALS, 'base64').toString('utf-8')),
+    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+  });
+} else {
+  // Use local file path in development
+  auth = new google.auth.GoogleAuth({
+    keyFile: process.env.GOOGLE_APPLICATION_CREDENTIALS,
+    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+  });
+}
+
+const sheets = google.sheets({ version: 'v4', auth });
 
 // Initialize Notion API client
 const notion = new Client({ auth: process.env.NOTION_TOKEN });
@@ -44,13 +59,13 @@ app.post("/chat", async (req, res) => {
   }
 });
 
+// Route to handle requests to the root URL
+app.get('/', (req, res) => {
+  res.send('Welcome to the MG Chatbot API!');
+});
+
 // Example: Fetch data from Google Sheets
 async function getGoogleSheetData() {
-  const auth = new google.auth.GoogleAuth({
-    keyFile: process.env.GOOGLE_APPLICATION_CREDENTIALS, // Get keyFile from .env
-    scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
-  });
-
   const client = await auth.getClient();
   const spreadsheetId = "1lHrgYbipQqkgrjICHcdD_0PaQMV58P6xC5jUPcrqSMc";
   const range = "Sheet1!A1:I40";

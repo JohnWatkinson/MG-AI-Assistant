@@ -35,18 +35,28 @@ npm install
 
 ## Running the Application
 
-To start the development server for the frontend:
+To start both the backend and frontend servers:
 
-```bash
-cd chatbot-ui
-npm start
-```
+### Starting the Backend
 
-To run the backend server:
+1. Open a terminal and navigate to the `Code` directory where your `server.js` file is located.
+2. Run the command:
+   ```bash
+   node src/server.js
+   ```
+   This starts the backend server, accessible at `http://localhost:3001`.
 
-```bash
-node src/server.js
-```
+### Starting the Frontend
+
+1. Open a new terminal window or tab.
+2. Navigate to the `chatbot-ui` directory where your React app is located.
+3. Run the command:
+   ```bash
+   npm start
+   ```
+   This starts the React development server, accessible at `http://localhost:3000`.
+
+By running both servers, you can interact with the chatbot interface and see it communicate with the backend API.
 
 ## Testing the Chat API
 
