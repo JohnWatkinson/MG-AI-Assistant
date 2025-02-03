@@ -50,6 +50,16 @@ if (process.env.NODE_ENV === "production") {
 }
 const notion = new Client({ auth: notionApiToken });
 
+// Environment-based decoding for NOTION_DATABASE_ID
+let notionDatabaseId;
+if (process.env.NODE_ENV === "production") {
+  notionDatabaseId = Buffer.from(process.env.NOTION_DATABASE_ID, "base64").toString(
+    "utf-8"
+  );
+} else {
+  notionDatabaseId = process.env.NOTION_DATABASE_ID;
+}
+
 // Chatbot API endpoint
 app.post("/chat", async (req, res) => {
   try {
@@ -94,8 +104,7 @@ async function getGoogleSheetData() {
 
 // Example: Fetch data from Notion
 async function getNotionData() {
-  const databaseId = process.env.NOTION_DATABASE_ID; // Get databaseId from .env
-  const response = await notion.databases.query({ database_id: databaseId });
+  const response = await notion.databases.query({ database_id: notionDatabaseId });
   console.log(response.results);
 }
 
