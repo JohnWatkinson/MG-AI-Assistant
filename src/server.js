@@ -60,6 +60,10 @@ if (process.env.NODE_ENV === "production") {
   notionDatabaseId = process.env.NOTION_DATABASE_ID;
 }
 
+console.log('NOTION_API_TOKEN:', process.env.NOTION_API_TOKEN);
+console.log('NOTION_DATABASE_ID:', process.env.NOTION_DATABASE_ID);
+console.log('GOOGLE_APPLICATION_CREDENTIALS:', process.env.GOOGLE_APPLICATION_CREDENTIALS);
+
 // Chatbot API endpoint
 app.post("/chat", async (req, res) => {
   try {
