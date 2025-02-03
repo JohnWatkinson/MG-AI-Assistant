@@ -40,7 +40,15 @@ if (process.env.NODE_ENV === "production") {
 const sheets = google.sheets({ version: "v4", auth });
 
 // Initialize Notion API client
-const notion = new Client({ auth: process.env.NOTION_TOKEN });
+let notionApiToken;
+if (process.env.NODE_ENV === "production") {
+  notionApiToken = Buffer.from(process.env.NOTION_API_TOKEN, "base64").toString(
+    "utf-8"
+  );
+} else {
+  notionApiToken = process.env.NOTION_API_TOKEN;
+}
+const notion = new Client({ auth: notionApiToken });
 
 // Chatbot API endpoint
 app.post("/chat", async (req, res) => {
