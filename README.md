@@ -72,6 +72,7 @@ To start both the backend and frontend servers:
 ### Switching Environments
 
 The application dynamically selects the API URL based on the `NODE_ENV` environment variable:
+
 - Set `NODE_ENV=development` for local testing.
 - Set `NODE_ENV=production` for production deployment on Railway.
 
@@ -92,3 +93,10 @@ curl -X POST https://mg-ai-assistant-production.up.railway.app/chat -H "Content-
 ## Deployment
 
 The application is deployed using Railway. Ensure your environment variables are set correctly in the `.env` file.
+
+## Deployment Status
+
+The frontend application has been successfully deployed on Vercel. You can access the live version of the chatbot using the URL provided by Vercel. Ensure that all necessary environment variables are correctly configured in the Vercel dashboard to maintain functionality.
+
+For any updates or changes, redeploy using the Vercel CLI as needed.
+https://mg-ai-assistant.vercel.app
