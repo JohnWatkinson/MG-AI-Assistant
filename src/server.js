@@ -40,6 +40,10 @@ if (process.env.NODE_ENV === "production") {
 const sheets = google.sheets({ version: "v4", auth });
 
 // Initialize Notion API client
+console.log(
+  "NOTION_API_TOKEN:",
+  Buffer.from(process.env.NOTION_API_TOKEN, "base64").toString("utf-8")
+);
 let notionApiToken;
 if (process.env.NODE_ENV === "production") {
   notionApiToken = Buffer.from(process.env.NOTION_API_TOKEN, "base64").toString(
@@ -53,16 +57,20 @@ const notion = new Client({ auth: notionApiToken });
 // Environment-based decoding for NOTION_DATABASE_ID
 let notionDatabaseId;
 if (process.env.NODE_ENV === "production") {
-  notionDatabaseId = Buffer.from(process.env.NOTION_DATABASE_ID, "base64").toString(
-    "utf-8"
-  );
+  notionDatabaseId = Buffer.from(
+    process.env.NOTION_DATABASE_ID,
+    "base64"
+  ).toString("utf-8");
 } else {
   notionDatabaseId = process.env.NOTION_DATABASE_ID;
 }
 
-console.log('NOTION_API_TOKEN:', process.env.NOTION_API_TOKEN);
-console.log('NOTION_DATABASE_ID:', process.env.NOTION_DATABASE_ID);
-console.log('GOOGLE_APPLICATION_CREDENTIALS:', process.env.GOOGLE_APPLICATION_CREDENTIALS);
+console.log("NOTION_API_TOKEN:", process.env.NOTION_API_TOKEN);
+console.log("NOTION_DATABASE_ID:", process.env.NOTION_DATABASE_ID);
+console.log(
+  "GOOGLE_APPLICATION_CREDENTIALS:",
+  process.env.GOOGLE_APPLICATION_CREDENTIALS
+);
 
 // Chatbot API endpoint
 app.post("/chat", async (req, res) => {
@@ -81,7 +89,10 @@ app.post("/chat", async (req, res) => {
       temperature: 0.7,
     });
 
-    console.log("Received response from OpenAI:", response.choices[0].message.content); // Log OpenAI response
+    console.log(
+      "Received response from OpenAI:",
+      response.choices[0].message.content
+    ); // Log OpenAI response
     res.json({ reply: response.choices[0].message.content });
   } catch (error) {
     console.error("Error with OpenAI API:", error);
@@ -111,7 +122,9 @@ async function getGoogleSheetData() {
 
 // Example: Fetch data from Notion
 async function getNotionData() {
-  const response = await notion.databases.query({ database_id: notionDatabaseId });
+  const response = await notion.databases.query({
+    database_id: notionDatabaseId,
+  });
   console.log(response.results);
 }
 
