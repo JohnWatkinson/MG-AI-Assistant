@@ -78,15 +78,45 @@ app.post("/chat", async (req, res) => {
     const userMessage = req.body.message;
     console.log("Received user message:", userMessage); // Log user message
 
+    // Fetch data from Notion and Google Sheets
+    const notionData = await getNotionData(); // Assume this function returns the data
+    const googleSheetsData = await getGoogleSheetData(); // Assume this function returns the data
+
+    const knowledgeBase = `
+### Notion Data:
+${JSON.stringify(notionData, null, 2)}
+
+### Google Sheets Data:
+${JSON.stringify(googleSheetsData, null, 2)}
+`;
+
+    const prompt = `
+You are Maison Guida's AI assistant, specializing in answering questions about the brand.
+
+### Context:
+Maison Guida is a sustainable luxury fashion brand based in Turin, Italy. It creates timeless designs using ethical materials and does not do sales or discounts.
+
+### Knowledge Base:
+${knowledgeBase}  
+
+### User Query:
+${userMessage}
+
+### Instructions:
+- Use a professional yet friendly tone.
+- If a question is outside your knowledge, say: 
+  "I'm sorry, but I don't have that information right now."
+- Keep responses clear and relevant.
+
+Respond in a concise and informative manner.
+`;
+
     // OpenAI API call
     console.log("Calling OpenAI API..."); // Indicate OpenAI API call
     const response = await openai.chat.completions.create({
-      model: "gpt-4o", // Change this if needed
-      messages: [
-        { role: "system", content: "You are a helpful assistant." },
-        { role: "user", content: userMessage },
-      ],
-      temperature: 0.7,
+      model: "gpt-4", // Or "gpt-3.5-turbo"
+      messages: [{ role: "system", content: prompt }],
+      temperature: 0.7, // Adjust for more/less creative responses
     });
 
     console.log(
@@ -117,7 +147,7 @@ async function getGoogleSheetData() {
     range,
   });
 
-  console.log(res.data.values);
+  return res.data.values;
 }
 
 // Example: Fetch data from Notion
@@ -125,11 +155,8 @@ async function getNotionData() {
   const response = await notion.databases.query({
     database_id: notionDatabaseId,
   });
-  console.log(response.results);
+  return response.results;
 }
-
-getGoogleSheetData();
-getNotionData();
 
 // Start the server
 app.listen(port, () => {
