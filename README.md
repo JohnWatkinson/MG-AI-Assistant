@@ -25,6 +25,15 @@ The frontend is built using React and is located in the `chatbot-ui` directory. 
 
 The backend server is built with Node.js and Express, located in the `src` directory. It handles API requests and integrates with external services.
 
+## Environment Configuration
+
+The application uses environment variables to manage different configurations for local and production environments. Ensure the following variables are set in your `.env` file:
+
+- `OPENAI_API_KEY`: Your OpenAI API key.
+- `GOOGLE_APPLICATION_CREDENTIALS`: Path to your Google credentials JSON file.
+- `NOTION_API_TOKEN`: Your Notion API token.
+- `NOTION_DATABASE_ID`: Your Notion database ID.
+
 ## Installation
 
 To install the necessary dependencies, run:
@@ -49,14 +58,22 @@ To start both the backend and frontend servers:
 ### Starting the Frontend
 
 1. Open a new terminal window or tab.
-2. Navigate to the `chatbot-ui` directory where your React app is located.
-3. Run the command:
+2. Navigate to the `chatbot-ui` directory.
+3. Ensure `NODE_ENV` is set to `development` for local testing:
+   ```bash
+   export NODE_ENV=development
+   ```
+4. Run the command:
    ```bash
    npm start
    ```
-   This starts the React development server, accessible at `http://localhost:3000`.
+   This starts the frontend server and opens the application in your default web browser.
 
-By running both servers, you can interact with the chatbot interface and see it communicate with the backend API.
+### Switching Environments
+
+The application dynamically selects the API URL based on the `NODE_ENV` environment variable:
+- Set `NODE_ENV=development` for local testing.
+- Set `NODE_ENV=production` for production deployment on Railway.
 
 ## Testing the Chat API
 

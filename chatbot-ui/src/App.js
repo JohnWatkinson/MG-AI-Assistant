@@ -1,7 +1,9 @@
 import React, { useState } from "react";
 import axios from "axios";
 
-const API_URL = "https://mg-ai-assistant-production.up.railway.app"; // Replace with your backend URL
+const API_URL = process.env.NODE_ENV === "production"
+  ? "https://mg-ai-assistant-production.up.railway.app"
+  : "http://localhost:3001"; // Switch based on environment
 
 function App() {
   const [messages, setMessages] = useState([]);

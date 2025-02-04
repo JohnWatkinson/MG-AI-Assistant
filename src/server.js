@@ -68,8 +68,10 @@ console.log('GOOGLE_APPLICATION_CREDENTIALS:', process.env.GOOGLE_APPLICATION_CR
 app.post("/chat", async (req, res) => {
   try {
     const userMessage = req.body.message;
+    console.log("Received user message:", userMessage); // Log user message
 
     // OpenAI API call
+    console.log("Calling OpenAI API..."); // Indicate OpenAI API call
     const response = await openai.chat.completions.create({
       model: "gpt-4o", // Change this if needed
       messages: [
@@ -79,6 +81,7 @@ app.post("/chat", async (req, res) => {
       temperature: 0.7,
     });
 
+    console.log("Received response from OpenAI:", response.choices[0].message.content); // Log OpenAI response
     res.json({ reply: response.choices[0].message.content });
   } catch (error) {
     console.error("Error with OpenAI API:", error);
