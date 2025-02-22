@@ -4,99 +4,159 @@ This is a chatbot for the [MaisonGuida](https://maisonguida.com) website.
 
 ## Project Overview
 
-The MaisonGuida AI Assistant is a chatbot that integrates FAQs, product data from Google Sheets, and AI responses to provide users with accurate and efficient information. The project is built using a combination of Node.js for the backend and React for the frontend, hosted on Railway.
+The MaisonGuida AI Assistant is an intelligent chatbot that provides accurate information about products and brand details. Built with Node.js (backend) and React (frontend), it uses semantic search with embeddings to efficiently retrieve relevant information before generating responses.
 
 ## Key Components
 
-- **Primary AI Model:** GPT-4o (OpenAI) for generating responses.
-- **Search System:** OpenAI Embeddings or FAISS for retrieving FAQ/product info.
-- **Data Storage:** Google Sheets (Products) + Notion (FAQs).
+- **AI Models:**
+  - GPT-3.5-turbo for generating natural responses
+  - text-embedding-ada-002 for semantic search capabilities
+- **Vector Search System:** Custom implementation using OpenAI embeddings with cosine similarity
+- **Data Sources:** JSON files stored in Google Drive for easy updates:
+  - Product catalog with details and pricing
+  - Website pages with brand information and policies
 
-This setup allows the chatbot to search for relevant information before querying GPT, optimizing API costs and improving response accuracy.
+This architecture enables the chatbot to:
+1. Convert all content into embeddings for efficient semantic search
+2. Find the most relevant information for each query
+3. Generate accurate, context-aware responses
+4. Scale efficiently with growing content
 
-## Frontend
+## Technical Architecture
 
-The frontend is built using React and is located in the `chatbot-ui` directory. Key files include:
+### Backend (`/src`)
 
-- `App.js`: Main React component handling the chat interface.
-- `index.js`: Entry point for the React application.
+- **Server (`server.js`):**
+  - Express server handling chat requests
+  - Integration with OpenAI API
+  - Google Drive API for data fetching
 
-## Backend
+- **Vector Store (`vectorStore.js`):**
+  - Manages document embeddings
+  - Implements semantic search using cosine similarity
+  - Caches embeddings to disk for efficiency
 
-The backend server is built with Node.js and Express, located in the `src` directory. It handles API requests and integrates with external services.
+### Frontend (`/chatbot-ui`)
+
+- **React Components:**
+  - `App.js`: Main chat interface
+  - `index.js`: Application entry point
 
 ## Environment Configuration
 
-The application uses environment variables to manage different configurations for local and production environments. Ensure the following variables are set in your `.env` file:
+Configure the following in your `.env` file:
 
-- `OPENAI_API_KEY`: Your OpenAI API key.
-- `GOOGLE_APPLICATION_CREDENTIALS`: Path to your Google credentials JSON file.
-- `NOTION_API_TOKEN`: Your Notion API token.
-- `NOTION_DATABASE_ID`: Your Notion database ID.
+```env
+# OpenAI API Configuration
+OPENAI_API_KEY=your_openai_api_key
 
-## Installation
+# Google Cloud Configuration
+GOOGLE_APPLICATION_CREDENTIALS=/path/to/credentials.json
 
-To install the necessary dependencies, run:
+# Google Drive JSON Files
+PAGES_JSON_ID=your_pages_json_file_id
+PRODUCTS_JSON_ID=your_products_json_file_id
+
+# Environment
+NODE_ENV=development  # or production
+```
+
+## Setup and Installation
+
+### Prerequisites
+
+1. Node.js and npm installed
+2. Google Cloud project with Drive API enabled
+3. OpenAI API key
+4. Google Drive JSON files for content
+
+### Installation
 
 ```bash
+# Install dependencies
 npm install
+
+# Create necessary directories
+mkdir -p data/chromadb
 ```
+
+### Google Drive Setup
+
+1. Create a service account in Google Cloud Console
+2. Download the credentials JSON file
+3. Share your content JSON files with the service account email
+4. Update `.env` with the file IDs
 
 ## Running the Application
 
-To start both the backend and frontend servers:
+### Development
 
-### Starting the Backend
-
-1. Open a terminal and navigate to the `Code` directory where your `server.js` file is located.
-2. Run the command:
+1. Start the backend:
    ```bash
+   cd Code
    node src/server.js
    ```
-   This starts the backend server, accessible at `http://localhost:3001`.
+   Server runs at `http://localhost:3001`
 
-### Starting the Frontend
-
-1. Open a new terminal window or tab.
-2. Navigate to the `chatbot-ui` directory.
-3. Ensure `NODE_ENV` is set to `development` for local testing:
+2. Start the frontend:
    ```bash
-   export NODE_ENV=development
-   ```
-4. Run the command:
-   ```bash
+   cd chatbot-ui
    npm start
    ```
-   This starts the frontend server and opens the application in your default web browser.
 
-### Switching Environments
+### Production
 
-The application dynamically selects the API URL based on the `NODE_ENV` environment variable:
+- Backend: Deployed on Railway
+- Frontend: Deployed on Vercel
 
-- Set `NODE_ENV=development` for local testing.
-- Set `NODE_ENV=production` for production deployment on Railway.
+## Testing
 
-## Testing the Chat API
+### API Testing
 
-You can test the chat API using the following curl command:
-
+Test locally:
 ```bash
-curl -X POST http://localhost:3001/chat -H "Content-Type: application/json" -d '{"message": "Hello!"}'
+curl -X POST http://localhost:3001/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "What products do you sell?"}'
 ```
 
-Alternatively, you can also test the chat API on the deployed application:
-
+Test production:
 ```bash
-curl -X POST https://mg-ai-assistant-production.up.railway.app/chat -H "Content-Type: application/json" -d '{"message": "Hello!"}'
+curl -X POST https://mg-ai-assistant-production.up.railway.app/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "What products do you sell?"}'
 ```
+
+## How It Works
+
+1. **Data Loading:**
+   - Fetches pages and products data from Google Drive JSON files
+   - Converts content into embeddings using OpenAI's API
+   - Caches embeddings locally for efficiency
+
+2. **Query Processing:**
+   - Converts user query into embeddings
+   - Performs semantic search using cosine similarity
+   - Retrieves most relevant content
+
+3. **Response Generation:**
+   - Uses GPT-3.5-turbo with relevant context
+   - Provides accurate, context-aware responses
+   - Includes product details, prices, and URLs
 
 ## Deployment
 
-The application is deployed using Railway. Ensure your environment variables are set correctly in the `.env` file.
+### Railway (Backend)
 
-## Deployment Status
+1. Connect your GitHub repository
+2. Configure environment variables
+3. Deploy the application
 
-The frontend application has been successfully deployed on Vercel. You can access the live version of the chatbot using the URL provided by Vercel. Ensure that all necessary environment variables are correctly configured in the Vercel dashboard to maintain functionality.
+### Vercel (Frontend)
 
-For any updates or changes, redeploy using the Vercel CLI as needed.
+1. Import from Git repository
+2. Configure environment variables
+3. Deploy the frontend
+
+Ensure all environment variables are properly set in both Railway and Vercel dashboards.
 https://mg-ai-assistant.vercel.app
