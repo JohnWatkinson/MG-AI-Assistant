@@ -44,11 +44,48 @@ This architecture enables the chatbot to:
   - `App.js`: Main chat interface
   - `index.js`: Application entry point
 
+## Setup and Running
+
+1. Install dependencies:
+   ```bash
+   # Install backend dependencies
+   npm install
+   
+   # Install frontend dependencies
+   cd chatbot-ui && npm install
+   ```
+
+2. Configure environment variables in `.env`:
+   ```env
+   # OpenAI API Key
+   OPENAI_API_KEY=your_openai_api_key
+   
+   # Google Drive Configuration
+   MG_GOOGLE_CREDENTIALS='/path/to/maisonguida-credentials.json'  # Custom name to avoid conflicts
+   PAGES_JSON_ID=your_pages_json_file_id
+   PRODUCTS_JSON_ID=your_products_json_file_id
+   
+   # Environment
+   NODE_ENV=development
+   ```
+
+3. Start the services:
+   ```bash
+   # Start backend (runs on port 3002)
+   node src/server.js
+   
+   # Start frontend (runs on port 3001)
+   cd chatbot-ui && npm start
+   ```
+
+4. Access the chatbot at http://localhost:3001
+
 ## Environment Configuration
 
-Configure the following in your `.env` file:
+The application uses two main configuration files:
 
-```env
+1. `.env` file for environment variables:
+   ```env
 # OpenAI API Configuration
 OPENAI_API_KEY=your_openai_api_key
 
