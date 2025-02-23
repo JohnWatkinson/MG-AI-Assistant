@@ -1,4 +1,4 @@
-require("dotenv").config();
+require("dotenv").config({ path: require('path').resolve(__dirname, '../.env') });
 const express = require("express");
 const cors = require("cors");
 const { OpenAI } = require("openai");
@@ -8,7 +8,7 @@ const fs = require('fs').promises;
 const path = require('path');
 
 const app = express();
-const port = 3001;
+const port = 3002;
 
 // Ensure data directory exists
 const dataDir = path.join(__dirname, '..', 'data', 'chromadb');
@@ -23,31 +23,14 @@ const openai = new OpenAI({
 });
 
 // Initialize Google Drive API client
-let auth;
-if (process.env.NODE_ENV === "production") {
-  auth = new google.auth.GoogleAuth({
-    credentials: JSON.parse(
-      Buffer.from(
-        process.env.GOOGLE_APPLICATION_CREDENTIALS,
-        "base64"
-      ).toString("utf-8")
-    ),
-    scopes: [
-      "https://www.googleapis.com/auth/drive.readonly",
-      "https://www.googleapis.com/auth/drive.file",
-      "https://www.googleapis.com/auth/drive.metadata.readonly",
-    ],
-  });
-} else {
-  auth = new google.auth.GoogleAuth({
-    keyFile: process.env.GOOGLE_APPLICATION_CREDENTIALS,
-    scopes: [
-      "https://www.googleapis.com/auth/drive.readonly",
-      "https://www.googleapis.com/auth/drive.file",
-      "https://www.googleapis.com/auth/drive.metadata.readonly",
-    ],
-  });
-}
+const auth = new google.auth.GoogleAuth({
+  keyFile: process.env.MG_GOOGLE_CREDENTIALS,
+  scopes: [
+    "https://www.googleapis.com/auth/drive.readonly",
+    "https://www.googleapis.com/auth/drive.file",
+    "https://www.googleapis.com/auth/drive.metadata.readonly",
+  ],
+});
 
 const drive = google.drive({ version: "v3", auth });
 
@@ -61,85 +44,130 @@ async function initVectorStore() {
 }
 initVectorStore().catch(console.error);
 
+// Cache for knowledge base data
+let cachedKnowledgeBase = null;
+let lastKnowledgeBaseFetch = 0;
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 // Chatbot API endpoint
-app.post("/chat", async (req, res) => {
+app.post("/api/chat", async (req, res) => {
+  const startTime = Date.now();
   try {
     const userMessage = req.body.message;
-    console.log("Received user message:", userMessage);
+    if (!userMessage) {
+      return res.status(400).json({ error: 'Message is required' });
+    }
+    console.log(`[${new Date().toISOString()}] Received user message:`, userMessage);
 
-    // Load knowledge base and update vector store if needed
-    const knowledgeBaseData = await getKnowledgeBase();
-    
-    // Update vector store with latest data
-    await vectorStore.updateCollection(knowledgeBaseData.pages_en, 'pages');
-    await vectorStore.updateCollection(knowledgeBaseData.products_en, 'products');
+    // Load knowledge base from cache or fetch if needed
+    const now = Date.now();
+    if (!cachedKnowledgeBase || (now - lastKnowledgeBaseFetch) > CACHE_TTL) {
+      console.log(`[${new Date().toISOString()}] Cache miss - fetching fresh knowledge base data...`);
+      try {
+        cachedKnowledgeBase = await getKnowledgeBase();
+        lastKnowledgeBaseFetch = now;
+        console.log(`[${new Date().toISOString()}] Successfully updated knowledge base cache`);
+      } catch (error) {
+        console.error(`[${new Date().toISOString()}] Error fetching knowledge base:`, error);
+        return res.status(500).json({ error: 'Failed to fetch knowledge base data' });
+      }
+    } else {
+      console.log(`[${new Date().toISOString()}] Using cached knowledge base data`);
+    }
+
+    // Update vector store if needed
+    try {
+      if (now - lastKnowledgeBaseFetch <= 1000) { // Only update if we just fetched new data
+        console.log(`[${new Date().toISOString()}] Updating vector store...`);
+        await vectorStore.updateCollection(cachedKnowledgeBase.pages_en, 'pages');
+        await vectorStore.updateCollection(cachedKnowledgeBase.products_en, 'products');
+        console.log(`[${new Date().toISOString()}] Vector store updated successfully`);
+      }
+    } catch (error) {
+      console.error(`[${new Date().toISOString()}] Error updating vector store:`, error);
+      return res.status(500).json({ error: 'Failed to update vector store' });
+    }
     
     // Search for relevant content
-    console.log('Searching for relevant content...');
-    const searchResults = await vectorStore.search(userMessage, 3);
+    console.log(`[${new Date().toISOString()}] Searching for relevant content...`);
+    let searchResults;
+    try {
+      searchResults = await vectorStore.search(userMessage, 3);
+      console.log(`[${new Date().toISOString()}] Search completed successfully`);
+    } catch (error) {
+      console.error(`[${new Date().toISOString()}] Error searching vector store:`, error);
+      return res.status(500).json({ error: 'Failed to search for relevant content' });
+    }
     
     // Format relevant content for the prompt
-    const relevantPages = searchResults.pages
-      .map(doc => `Page: ${doc.metadata.title}
-URL: ${doc.metadata.url}
-${doc.pageContent}`)
-      .join('\n\n');
+    const relevantPages = (searchResults.pages || [])
+      .map(doc => `${doc.metadata.title || 'Untitled'}: ${doc.pageContent || ''}`)
+      .filter(content => content.trim())
+      .join('\n');
     
-    const relevantProducts = searchResults.products
-      .map(doc => `Product: ${doc.metadata.title}
-URL: ${doc.metadata.url}
-Price: €${doc.metadata.price}
-${doc.pageContent}`)
-      .join('\n\n');
+    const relevantProducts = (searchResults.products || [])
+      .map(doc => `${doc.metadata.title || 'Untitled'} (€${doc.metadata.price || 'N/A'}): ${doc.pageContent || ''}`)
+      .filter(content => content.trim())
+      .join('\n');
 
-    const prompt = `
-You are Maison Guida's AI assistant, specializing in answering questions about the brand.
+    const prompt = `You are Clara, Maison Guida's friendly AI fashion consultant. You help customers discover our sustainable luxury fashion with warmth and expertise, like chatting with a friend who happens to be a fashion expert.
 
-### Context:
-Maison Guida is a sustainable luxury fashion brand based in Turin, Italy. It creates timeless designs using ethical materials and does not do sales or discounts.
+Context about our brand:
+Maison Guida is a sustainable luxury fashion brand based in Turin, Italy. We create timeless designs using ethical materials, believing in fair, transparent pricing that reflects the true value of sustainable fashion.
 
-### Relevant Pages:
+Relevant information for this query:
 ${relevantPages}
-
-### Relevant Products:
 ${relevantProducts}
 
-### User Query:
-${userMessage}
+User question: ${userMessage}
 
-### Instructions:
-- Use a professional yet friendly tone
-- When answering about products:
-  * Include the exact price in EUR
-  * Provide the product URL
-  * Emphasize sustainable and ethical aspects
-  * Mention shipping (France, Germany, Netherlands, Italy, or Torino Store pickup)
-- When answering about the brand:
-  * Use information from the website pages
-  * Focus on our sustainable and ethical commitments
-- If information is not in the relevant content, say:
-  "I'm sorry, but I don't have that information right now."
-- Keep responses clear, relevant, and concise
+Style guide:
+Speak naturally as if chatting in our Turin boutique. Avoid bullet points or structured formats like "Product: X, Price: Y". Instead, weave product details, prices (in EUR), and shipping options (France, Germany, Netherlands, Italy, or Torino pickup) into a flowing conversation. Make it feel like a luxury boutique experience.
 
-Respond in a concise and informative manner.
-`;
+Example tone:
+"Oh, you'll love our dresses! The cocktail dress is a particular favorite - it's beautifully crafted in Italy and priced at €259. Speaking of special pieces, have you seen our tie-dye dress? It's absolutely stunning..."
+
+Keep responses warm, personal, and concise while maintaining professionalism. If unsure about anything, be honest and offer to connect them with our team.`;
 
     // OpenAI API call
-    console.log("Calling OpenAI API..."); // Indicate OpenAI API call
-    const response = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo", // Using GPT-3.5 due to token limits
-      messages: [{ role: "system", content: prompt }],
-      temperature: 0.7, // Adjust for more/less creative responses
-    });
+    console.log(`[${new Date().toISOString()}] Calling OpenAI API...`);
+    try {
+      const response = await openai.chat.completions.create({
+        model: "gpt-3.5-turbo",
+        messages: [
+          { role: "system", content: prompt },
+          { role: "user", content: userMessage }
+        ],
+        temperature: 0.8,
+        max_tokens: 300
+      });
 
-    console.log(
-      "Received response from OpenAI:",
-      response.choices[0].message.content
-    ); // Log OpenAI response
-    res.json({ reply: response.choices[0].message.content });
+      const aiResponse = response.choices[0]?.message?.content;
+      if (!aiResponse) {
+        throw new Error('Empty response from OpenAI');
+      }
+
+      console.log(`[${new Date().toISOString()}] Received response from OpenAI`);
+      const totalTime = Date.now() - startTime;
+      console.log(`[${new Date().toISOString()}] Total request time: ${totalTime}ms`);
+      
+      res.json({ 
+        reply: aiResponse,
+        processingTime: totalTime
+      });
+    } catch (error) {
+      console.error(`[${new Date().toISOString()}] Error with OpenAI API:`, error);
+      res.status(500).json({ 
+        error: "Failed to fetch response from OpenAI",
+        details: error.message
+      });
+    }
   } catch (error) {
-    console.error("Error with OpenAI API:", error);
-    res.status(500).json({ error: "Failed to fetch response from OpenAI" });
+    console.error(`[${new Date().toISOString()}] Unexpected error:`, error);
+    res.status(500).json({ 
+      error: "An unexpected error occurred",
+      details: error.message
+    });
   }
 });
 

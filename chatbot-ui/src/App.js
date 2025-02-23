@@ -3,7 +3,7 @@ import axios from "axios";
 
 const API_URL = process.env.NODE_ENV === "production"
   ? "https://mg-ai-assistant-production.up.railway.app"
-  : "http://localhost:3001"; // Switch based on environment
+  : "http://localhost:3002"; // Switch based on environment
 
 function App() {
   const [messages, setMessages] = useState([]);
@@ -16,7 +16,7 @@ function App() {
     setMessages([...messages, userMessage]);
 
     try {
-      const response = await axios.post(`${API_URL}/chat`, { message: input });
+      const response = await axios.post(`${API_URL}/api/chat`, { message: input });
       const botMessage = { role: "assistant", content: response.data.reply };
 
       setMessages([...messages, userMessage, botMessage]);

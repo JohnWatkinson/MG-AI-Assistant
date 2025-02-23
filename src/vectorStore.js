@@ -1,24 +1,89 @@
 const { OpenAI } = require('openai');
 const path = require('path');
 const fs = require('fs').promises;
+const crypto = require('crypto');
 
-// Initialize OpenAI client
+// Initialize OpenAI client with retry logic
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
+  maxRetries: 3,
+  timeout: 30000,
 });
 
-// Simple vector similarity function
+// Optimized vector similarity using Float32Array for better performance
 function cosineSimilarity(A, B) {
+  const a = new Float32Array(A);
+  const b = new Float32Array(B);
   let dotProduct = 0;
   let normA = 0;
   let normB = 0;
-  for (let i = 0; i < A.length; i++) {
-    dotProduct += A[i] * B[i];
-    normA += A[i] * A[i];
-    normB += B[i] * B[i];
+  
+  // Use loop unrolling for better performance
+  const len = a.length;
+  const step = 4;
+  let i = 0;
+  
+  for (; i < len - step; i += step) {
+    dotProduct += a[i] * b[i] + a[i + 1] * b[i + 1] + a[i + 2] * b[i + 2] + a[i + 3] * b[i + 3];
+    normA += a[i] * a[i] + a[i + 1] * a[i + 1] + a[i + 2] * a[i + 2] + a[i + 3] * a[i + 3];
+    normB += b[i] * b[i] + b[i + 1] * b[i + 1] + b[i + 2] * b[i + 2] + b[i + 3] * b[i + 3];
   }
+  
+  // Handle remaining elements
+  for (; i < len; i++) {
+    dotProduct += a[i] * b[i];
+    normA += a[i] * a[i];
+    normB += b[i] * b[i];
+  }
+  
   return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
 }
+
+// Cache embeddings in memory with LRU-like behavior
+class EmbeddingCache {
+  constructor(maxSize = 1000) {
+    this.cache = new Map();
+    this.maxSize = maxSize;
+  }
+
+  getKey(text) {
+    return crypto.createHash('md5').update(text).digest('hex');
+  }
+
+  get(text) {
+    const key = this.getKey(text);
+    const item = this.cache.get(key);
+    if (item) {
+      // Update access time
+      item.lastAccessed = Date.now();
+      return item.embedding;
+    }
+    return null;
+  }
+
+  set(text, embedding) {
+    const key = this.getKey(text);
+    if (this.cache.size >= this.maxSize) {
+      // Remove least recently used item
+      let oldest = Date.now();
+      let oldestKey;
+      for (const [k, v] of this.cache.entries()) {
+        if (v.lastAccessed < oldest) {
+          oldest = v.lastAccessed;
+          oldestKey = k;
+        }
+      }
+      if (oldestKey) this.cache.delete(oldestKey);
+    }
+    this.cache.set(key, {
+      embedding,
+      lastAccessed: Date.now()
+    });
+  }
+}
+
+// Initialize embedding cache
+const embeddingCache = new EmbeddingCache();
 
 class VectorStore {
   constructor() {
@@ -30,6 +95,11 @@ class VectorStore {
       pages: [],
       products: [],
     };
+    this.lastUpdateTime = {
+      pages: 0,
+      products: 0,
+    };
+    this.batchSize = 20; // Number of embeddings to process in parallel
   }
 
   // Initialize collections
@@ -88,66 +158,137 @@ class VectorStore {
 
   // Update the vector store with new data
   async updateCollection(data, type) {
-    const documents = this.prepareDocuments(data, type);
+    console.log(`[${new Date().toISOString()}] Starting collection update for ${type}`);
+    const startTime = Date.now();
     
-    // Get embeddings for all documents
-    const embeddings = [];
-    for (const doc of documents) {
-      const response = await openai.embeddings.create({
-        model: 'text-embedding-ada-002',
-        input: doc.content,
-      });
-      embeddings.push(response.data[0].embedding);
+    // Check if update is needed
+    const dataHash = crypto.createHash('md5')
+      .update(JSON.stringify(data))
+      .digest('hex');
+    
+    if (this.lastUpdateTime[type] && this.lastUpdateTime[type] === dataHash) {
+      console.log(`[${new Date().toISOString()}] No changes detected in ${type} data, skipping update`);
+      return;
     }
 
-    // Update collections and embeddings
+    const documents = this.prepareDocuments(data, type);
+    const embeddings = [];
+    const batchPromises = [];
+    
+    // Process documents in batches
+    for (let i = 0; i < documents.length; i += this.batchSize) {
+      const batch = documents.slice(i, i + this.batchSize);
+      const batchContents = batch.map(doc => doc.content);
+      
+      // Check cache first
+      const batchEmbeddings = [];
+      const uncachedIndices = [];
+      const uncachedContents = [];
+      
+      batchContents.forEach((content, index) => {
+        const cached = embeddingCache.get(content);
+        if (cached) {
+          batchEmbeddings[index] = cached;
+        } else {
+          uncachedIndices.push(index);
+          uncachedContents.push(content);
+        }
+      });
+      
+      if (uncachedContents.length > 0) {
+        batchPromises.push(
+          openai.embeddings.create({
+            model: 'text-embedding-ada-002',
+            input: uncachedContents,
+          }).then(response => {
+            response.data.forEach((item, index) => {
+              const batchIndex = uncachedIndices[index];
+              batchEmbeddings[batchIndex] = item.embedding;
+              embeddingCache.set(batchContents[batchIndex], item.embedding);
+            });
+            return batchEmbeddings;
+          })
+        );
+      } else {
+        batchPromises.push(Promise.resolve(batchEmbeddings));
+      }
+    }
+
+    // Wait for all batches to complete
+    const batchResults = await Promise.all(batchPromises);
+    embeddings.push(...batchResults.flat());
+
+    // Update collections
     this.collections[type] = documents;
     this.embeddings[type] = embeddings;
+    this.lastUpdateTime[type] = dataHash;
 
-    // Save to disk
+    // Save to disk asynchronously
     const dataDir = path.join(__dirname, '..', 'data');
-    await fs.writeFile(
+    fs.writeFile(
       path.join(dataDir, `${type}_embeddings.json`),
       JSON.stringify({
         documents: documents,
         embeddings: embeddings,
+        dataHash: dataHash,
+        lastUpdateTime: this.lastUpdateTime[type],
       }, null, 2)
-    );
+    ).catch(err => console.error(`Error saving ${type} embeddings:`, err));
+
+    console.log(`[${new Date().toISOString()}] Collection update completed for ${type} in ${Date.now() - startTime}ms`);
   }
 
   // Search across both collections
   async search(query, maxResults = 5) {
-    // Get query embedding
-    const queryResponse = await openai.embeddings.create({
-      model: 'text-embedding-ada-002',
-      input: query,
-    });
-    const queryEmbedding = queryResponse.data[0].embedding;
+    console.log(`[${new Date().toISOString()}] Starting search for query: ${query}`);
+    const startTime = Date.now();
+
+    // Check cache for query embedding
+    let queryEmbedding = embeddingCache.get(query);
+    if (!queryEmbedding) {
+      const queryResponse = await openai.embeddings.create({
+        model: 'text-embedding-ada-002',
+        input: query,
+      });
+      queryEmbedding = queryResponse.data[0].embedding;
+      embeddingCache.set(query, queryEmbedding);
+    }
 
     const results = {
       pages: [],
       products: [],
     };
 
-    // Search in both collections
-    for (const type of ['pages', 'products']) {
-      // Calculate similarities
-      const similarities = this.embeddings[type].map((embedding, index) => ({
-        similarity: cosineSimilarity(queryEmbedding, embedding),
-        document: this.collections[type][index],
-      }));
+    // Search in both collections using parallel processing
+    await Promise.all(['pages', 'products'].map(async type => {
+      // Skip if collection is empty
+      if (this.embeddings[type].length === 0) return;
 
-      // Sort by similarity and take top results
-      similarities
-        .sort((a, b) => b.similarity - a.similarity)
-        .slice(0, maxResults)
-        .forEach(item => {
-          if (item.similarity > 0.7) { // Only include relevant results
-            results[type].push(item.document);
-          }
+      // Calculate similarities in chunks for better memory usage
+      const chunkSize = 100;
+      const similarities = [];
+      
+      for (let i = 0; i < this.embeddings[type].length; i += chunkSize) {
+        const chunk = this.embeddings[type].slice(i, i + chunkSize);
+        const chunkSimilarities = chunk.map((embedding, index) => {
+          const docIndex = i + index;
+          const similarity = cosineSimilarity(queryEmbedding, embedding);
+          return { similarity, index: docIndex };
         });
-    }
+        similarities.push(...chunkSimilarities);
+      }
 
+      // Use partial sort for better performance with large datasets
+      const topK = similarities
+        .filter(item => item.similarity > 0.7) // Pre-filter to reduce sorting load
+        .sort((a, b) => b.similarity - a.similarity)
+        .slice(0, maxResults);
+
+      // Get documents for top similarities
+      results[type] = topK.map(item => this.collections[type][item.index]).filter(Boolean);
+    }));
+
+    console.log(`[${new Date().toISOString()}] Search completed in ${Date.now() - startTime}ms`);
     return results;
   }
 }

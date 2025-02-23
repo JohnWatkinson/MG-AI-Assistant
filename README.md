@@ -17,6 +17,7 @@ The MaisonGuida AI Assistant is an intelligent chatbot that provides accurate in
   - Website pages with brand information and policies
 
 This architecture enables the chatbot to:
+
 1. Convert all content into embeddings for efficient semantic search
 2. Find the most relevant information for each query
 3. Generate accurate, context-aware responses
@@ -27,6 +28,7 @@ This architecture enables the chatbot to:
 ### Backend (`/src`)
 
 - **Server (`server.js`):**
+
   - Express server handling chat requests
   - Integration with OpenAI API
   - Google Drive API for data fetching
@@ -92,11 +94,13 @@ mkdir -p data/chromadb
 ### Development
 
 1. Start the backend:
+
    ```bash
    cd Code
    node src/server.js
    ```
-   Server runs at `http://localhost:3001`
+
+   Server runs at `http://localhost:3002`
 
 2. Start the frontend:
    ```bash
@@ -114,13 +118,15 @@ mkdir -p data/chromadb
 ### API Testing
 
 Test locally:
+
 ```bash
-curl -X POST http://localhost:3001/chat \
+curl -X POST http://localhost:3002/chat \
   -H "Content-Type: application/json" \
   -d '{"message": "What products do you sell?"}'
 ```
 
 Test production:
+
 ```bash
 curl -X POST https://mg-ai-assistant-production.up.railway.app/chat \
   -H "Content-Type: application/json" \
@@ -130,11 +136,13 @@ curl -X POST https://mg-ai-assistant-production.up.railway.app/chat \
 ## How It Works
 
 1. **Data Loading:**
+
    - Fetches pages and products data from Google Drive JSON files
    - Converts content into embeddings using OpenAI's API
    - Caches embeddings locally for efficiency
 
 2. **Query Processing:**
+
    - Converts user query into embeddings
    - Performs semantic search using cosine similarity
    - Retrieves most relevant content
