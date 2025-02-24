@@ -171,9 +171,12 @@ Keep responses warm, personal, and concise while maintaining professionalism. If
   }
 });
 
-// Route to handle requests to the root URL
+// Health check endpoint
 app.get("/", (req, res) => {
-  res.send("Welcome to the MG Chatbot API!");
+  res.status(200).json({
+    status: "healthy",
+    timestamp: new Date().toISOString()
+  });
 });
 
 // Example: Fetch data from Google Sheets
