@@ -61,12 +61,17 @@ This architecture enables the chatbot to:
    OPENAI_API_KEY=your_openai_api_key
    
    # Google Drive Configuration
-   MG_GOOGLE_CREDENTIALS='/path/to/maisonguida-credentials.json'  # Custom name to avoid conflicts
+   MG_GOOGLE_CREDENTIALS=base64_encoded_google_credentials  # Base64-encoded JSON credentials
    PAGES_JSON_ID=your_pages_json_file_id
    PRODUCTS_JSON_ID=your_products_json_file_id
    
    # Environment
    NODE_ENV=development
+   ```
+
+   Note: For the Google credentials, convert your JSON file to base64:
+   ```bash
+   base64 -w 0 path/to/credentials.json > credentials.base64
    ```
 
 3. Start the services:
@@ -80,25 +85,45 @@ This architecture enables the chatbot to:
 
 4. Access the chatbot at http://localhost:3001
 
-## Environment Configuration
+## Deployment
 
-The application uses two main configuration files:
+### Railway
 
-1. `.env` file for environment variables:
+1. Create a new project in Railway
+2. Connect your GitHub repository
+3. Configure environment variables:
    ```env
-# OpenAI API Configuration
-OPENAI_API_KEY=your_openai_api_key
+   # Required Variables
+   OPENAI_API_KEY=your_openai_api_key
+   MG_GOOGLE_CREDENTIALS=base64_encoded_credentials  # Base64-encoded JSON
+   NODE_ENV=production
+   PAGES_JSON_ID=your_pages_json_file_id
+   PRODUCTS_JSON_ID=your_products_json_file_id
+   ```
+4. Deploy the project
 
-# Google Cloud Configuration
-GOOGLE_APPLICATION_CREDENTIALS=/path/to/credentials.json
+### API Endpoints
 
-# Google Drive JSON Files
-PAGES_JSON_ID=your_pages_json_file_id
-PRODUCTS_JSON_ID=your_products_json_file_id
+- `POST /api/chat`: Main chat endpoint
+  ```json
+  {
+    "message": "What products do you sell?"
+  }
+  ```
 
-# Environment
-NODE_ENV=development  # or production
-```
+- `GET /status`: Health check and system status
+  ```json
+  {
+    "status": "healthy",
+    "vectorStore": "initialized",
+    "collections": {
+      "pages": { "documents": 27, "embeddings": 27 },
+      "products": { "documents": 40, "embeddings": 40 }
+    }
+  }
+  ```
+
+- `GET /health`: Basic health check endpoint
 
 ## Setup and Installation
 
