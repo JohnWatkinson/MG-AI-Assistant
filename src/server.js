@@ -41,7 +41,7 @@ const openai = new OpenAI({
 
 // Initialize Google Drive API client
 const auth = new google.auth.GoogleAuth({
-  keyFile: process.env.MG_GOOGLE_CREDENTIALS,
+  credentials: JSON.parse(Buffer.from(process.env.MG_GOOGLE_CREDENTIALS, 'base64').toString()),
   scopes: [
     "https://www.googleapis.com/auth/drive.readonly",
     "https://www.googleapis.com/auth/drive.file",
