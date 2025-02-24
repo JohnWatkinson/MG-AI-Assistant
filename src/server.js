@@ -36,22 +36,18 @@ const drive = google.drive({ version: "v3", auth });
 
 // Initialize vector store on startup
 let vectorStoreInitialized = false;
-async function initVectorStore() {
+
+// Async initialization that won't block server startup
+setTimeout(async () => {
   try {
     console.log('Starting vector store initialization...');
-    if (!vectorStoreInitialized) {
-      await vectorStore.init();
-      vectorStoreInitialized = true;
-      console.log('Vector store initialized successfully');
-    }
+    await vectorStore.init();
+    vectorStoreInitialized = true;
+    console.log('Vector store initialized successfully');
   } catch (error) {
     console.error('Vector store initialization error:', error);
-    // Don't throw the error, allow server to start
   }
-}
-
-// Start initialization but don't wait for it
-initVectorStore();
+}, 1000);
 
 // Cache for knowledge base data
 let cachedKnowledgeBase = null;
@@ -185,19 +181,9 @@ app.get("/", (req, res) => {
   res.send("Welcome to the MG Chatbot API!");
 });
 
-// Dedicated health check endpoint
+// Simple health check endpoint that responds immediately
 app.get("/health", (req, res) => {
-  res.status(200).json({
-    status: "healthy",
-    uptime: process.uptime(),
-    timestamp: new Date().toISOString(),
-    vectorStore: vectorStoreInitialized ? "initialized" : "initializing",
-    env: {
-      node_env: process.env.NODE_ENV,
-      google_creds: !!process.env.MG_GOOGLE_CREDENTIALS,
-      openai_key: !!process.env.OPENAI_API_KEY
-    }
-  });
+  res.status(200).json({ status: "healthy" });
 });
 
 // Example: Fetch data from Google Sheets
