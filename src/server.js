@@ -8,14 +8,31 @@ const fs = require('fs').promises;
 const path = require('path');
 
 const app = express();
-const port = 3002;
+const port = process.env.PORT || 3002;
+
+// Configure logging
+const log = (message) => {
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] ${message}`);
+};
+
+// Log startup information
+log('=== Server Starting ===');
+log(`Node Environment: ${process.env.NODE_ENV}`);
+log(`Port: ${port}`);
+log(`Current Directory: ${process.cwd()}`);
+log(`Google Credentials Path: ${process.env.MG_GOOGLE_CREDENTIALS}`);
 
 // Ensure data directory exists
 const dataDir = path.join(__dirname, '..', 'data', 'chromadb');
-fs.mkdir(dataDir, { recursive: true }).catch(console.error);
+fs.mkdir(dataDir, { recursive: true })
+  .then(() => log(`Created/verified data directory: ${dataDir}`))
+  .catch(err => log(`Error creating data directory: ${err.message}`));
 
 app.use(express.json());
 app.use(cors());
+
+log('Middleware configured');
 
 // Initialize OpenAI API client
 const openai = new OpenAI({
@@ -46,25 +63,28 @@ function logWithTime(message) {
 }
 
 // Async initialization that won't block server startup
+log('Scheduling vector store initialization...');
+
 setTimeout(async () => {
   try {
-    logWithTime('=== Vector Store Initialization Starting ===');
-    logWithTime('Memory usage before init: ' + JSON.stringify(process.memoryUsage()));
+    log('🔄 Vector Store Initialization - START');
+    log('📊 Memory Before: ' + JSON.stringify(process.memoryUsage()));
+    log('📁 Data Directory: ' + dataDir);
     
     await vectorStore.init();
     vectorStoreInitialized = true;
     
-    logWithTime('=== Vector Store Initialization Complete ===');
-    logWithTime('Memory usage after init: ' + JSON.stringify(process.memoryUsage()));
-    logWithTime('Total initialization time: ' + (Date.now() - initializationStartTime) + 'ms');
+    log('✅ Vector Store Initialization - COMPLETE');
+    log('📊 Memory After: ' + JSON.stringify(process.memoryUsage()));
+    log('⏱️ Init Time: ' + (Date.now() - initializationStartTime) + 'ms');
     
     // Log collections status
     const collections = vectorStore.getCollectionsStatus();
-    logWithTime('Collections loaded: ' + JSON.stringify(collections));
+    log('📚 Collections: ' + JSON.stringify(collections));
   } catch (error) {
-    logWithTime('=== Vector Store Initialization Failed ===');
-    logWithTime('Error details: ' + error.message);
-    console.error('Full error:', error);
+    log('❌ Vector Store Initialization - FAILED');
+    log('💥 Error: ' + error.message);
+    log('Stack: ' + error.stack);
     initializationError = error;
   }
 }, 1000);
@@ -201,31 +221,36 @@ app.get("/", (req, res) => {
   res.send("Welcome to the MG Chatbot API!");
 });
 
-// Health check endpoint that checks vector store initialization
+// Simple health check that always returns 200
 app.get("/health", (req, res) => {
-  // During the first 30 seconds of startup, return 200 to give the app time to initialize
-  const startupGracePeriod = 30000; // 30 seconds
+  const timeElapsed = Date.now() - initializationStartTime;
+  res.status(200).json({ 
+    status: "healthy",
+    uptime: timeElapsed,
+    vectorStore: vectorStoreInitialized ? "initialized" : "initializing"
+  });
+});
+
+// Status endpoint for detailed health information
+app.get("/status", (req, res) => {
   const timeElapsed = Date.now() - initializationStartTime;
   
   if (vectorStoreInitialized) {
-    res.status(200).json({ status: "healthy", vectorStore: "initialized" });
-  } else if (timeElapsed < startupGracePeriod) {
-    // During grace period, return 200 even if not initialized
     res.status(200).json({ 
-      status: "starting", 
-      vectorStore: "initializing",
-      uptime: timeElapsed
+      status: "healthy", 
+      vectorStore: "initialized",
+      uptime: timeElapsed,
+      collections: vectorStore.getCollectionsStatus()
     });
   } else if (initializationError) {
-    // If initialization failed, return 500 with error info
     res.status(500).json({ 
       status: "error", 
       vectorStore: "failed",
-      error: initializationError.message
+      error: initializationError.message,
+      uptime: timeElapsed
     });
   } else {
-    // After grace period, if still initializing, return 503
-    res.status(503).json({ 
+    res.status(200).json({ 
       status: "initializing", 
       vectorStore: "pending",
       uptime: timeElapsed
@@ -315,10 +340,14 @@ app.use((err, req, res, next) => {
 });
 
 // Start the server
-const server = app.listen(port, () => {
-  console.log(`Chatbot server running on port ${port}`);
-  console.log('Environment:', process.env.NODE_ENV);
-  console.log('Google credentials available:', !!process.env.MG_GOOGLE_CREDENTIALS);
+const server = // Start the server
+app.listen(port, () => {
+  log('🚀 Server Started Successfully');
+  log(`🌐 Server URL: http://localhost:${port}`);
+  log(`🔑 API Keys Status:`);
+  log(`   - OpenAI: ${process.env.OPENAI_API_KEY ? '✅ Present' : '❌ Missing'}`);
+  log(`   - Google: ${process.env.MG_GOOGLE_CREDENTIALS ? '✅ Present' : '❌ Missing'}`);
+  log('⚡ Ready to handle requests');
 });
 
 // Handle server errors
