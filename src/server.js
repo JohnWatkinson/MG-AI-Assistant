@@ -181,9 +181,13 @@ app.get("/", (req, res) => {
   res.send("Welcome to the MG Chatbot API!");
 });
 
-// Simple health check endpoint that responds immediately
+// Health check endpoint that checks vector store initialization
 app.get("/health", (req, res) => {
-  res.status(200).json({ status: "healthy" });
+  if (vectorStoreInitialized) {
+    res.status(200).json({ status: "healthy", vectorStore: "initialized" });
+  } else {
+    res.status(503).json({ status: "initializing", vectorStore: "pending" });
+  }
 });
 
 // Example: Fetch data from Google Sheets
