@@ -180,11 +180,23 @@ Keep responses warm, personal, and concise while maintaining professionalism. If
   }
 });
 
-// Health check endpoint
+// Welcome endpoint
 app.get("/", (req, res) => {
+  res.send("Welcome to the MG Chatbot API!");
+});
+
+// Dedicated health check endpoint
+app.get("/health", (req, res) => {
   res.status(200).json({
     status: "healthy",
-    timestamp: new Date().toISOString()
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+    vectorStore: vectorStoreInitialized ? "initialized" : "initializing",
+    env: {
+      node_env: process.env.NODE_ENV,
+      google_creds: !!process.env.MG_GOOGLE_CREDENTIALS,
+      openai_key: !!process.env.OPENAI_API_KEY
+    }
   });
 });
 
