@@ -37,12 +37,21 @@ const drive = google.drive({ version: "v3", auth });
 // Initialize vector store on startup
 let vectorStoreInitialized = false;
 async function initVectorStore() {
-  if (!vectorStoreInitialized) {
-    await vectorStore.init();
-    vectorStoreInitialized = true;
+  try {
+    console.log('Starting vector store initialization...');
+    if (!vectorStoreInitialized) {
+      await vectorStore.init();
+      vectorStoreInitialized = true;
+      console.log('Vector store initialized successfully');
+    }
+  } catch (error) {
+    console.error('Vector store initialization error:', error);
+    // Don't throw the error, allow server to start
   }
 }
-initVectorStore().catch(console.error);
+
+// Start initialization but don't wait for it
+initVectorStore();
 
 // Cache for knowledge base data
 let cachedKnowledgeBase = null;
@@ -254,7 +263,29 @@ async function getKnowledgeBase() {
   }
 }
 
+// Basic error handling
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  res.status(500).json({ status: 'error', message: 'Internal server error' });
+});
+
 // Start the server
-app.listen(port, () => {
-  console.log(`Chatbot server running on http://localhost:${port}`);
+const server = app.listen(port, () => {
+  console.log(`Chatbot server running on port ${port}`);
+  console.log('Environment:', process.env.NODE_ENV);
+  console.log('Google credentials available:', !!process.env.MG_GOOGLE_CREDENTIALS);
+});
+
+// Handle server errors
+server.on('error', (error) => {
+  console.error('Server error:', error);
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught exception:', error);
+});
+
+process.on('unhandledRejection', (error) => {
+  console.error('Unhandled rejection:', error);
 });
