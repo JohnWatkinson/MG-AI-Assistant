@@ -36,16 +36,36 @@ const drive = google.drive({ version: "v3", auth });
 
 // Initialize vector store on startup
 let vectorStoreInitialized = false;
+let initializationStartTime = Date.now();
+let initializationError = null;
+
+// Function to log with timestamp
+function logWithTime(message) {
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] ${message}`);
+}
 
 // Async initialization that won't block server startup
 setTimeout(async () => {
   try {
-    console.log('Starting vector store initialization...');
+    logWithTime('=== Vector Store Initialization Starting ===');
+    logWithTime('Memory usage before init: ' + JSON.stringify(process.memoryUsage()));
+    
     await vectorStore.init();
     vectorStoreInitialized = true;
-    console.log('Vector store initialized successfully');
+    
+    logWithTime('=== Vector Store Initialization Complete ===');
+    logWithTime('Memory usage after init: ' + JSON.stringify(process.memoryUsage()));
+    logWithTime('Total initialization time: ' + (Date.now() - initializationStartTime) + 'ms');
+    
+    // Log collections status
+    const collections = vectorStore.getCollectionsStatus();
+    logWithTime('Collections loaded: ' + JSON.stringify(collections));
   } catch (error) {
-    console.error('Vector store initialization error:', error);
+    logWithTime('=== Vector Store Initialization Failed ===');
+    logWithTime('Error details: ' + error.message);
+    console.error('Full error:', error);
+    initializationError = error;
   }
 }, 1000);
 
@@ -183,10 +203,33 @@ app.get("/", (req, res) => {
 
 // Health check endpoint that checks vector store initialization
 app.get("/health", (req, res) => {
+  // During the first 30 seconds of startup, return 200 to give the app time to initialize
+  const startupGracePeriod = 30000; // 30 seconds
+  const timeElapsed = Date.now() - initializationStartTime;
+  
   if (vectorStoreInitialized) {
     res.status(200).json({ status: "healthy", vectorStore: "initialized" });
+  } else if (timeElapsed < startupGracePeriod) {
+    // During grace period, return 200 even if not initialized
+    res.status(200).json({ 
+      status: "starting", 
+      vectorStore: "initializing",
+      uptime: timeElapsed
+    });
+  } else if (initializationError) {
+    // If initialization failed, return 500 with error info
+    res.status(500).json({ 
+      status: "error", 
+      vectorStore: "failed",
+      error: initializationError.message
+    });
   } else {
-    res.status(503).json({ status: "initializing", vectorStore: "pending" });
+    // After grace period, if still initializing, return 503
+    res.status(503).json({ 
+      status: "initializing", 
+      vectorStore: "pending",
+      uptime: timeElapsed
+    });
   }
 });
 

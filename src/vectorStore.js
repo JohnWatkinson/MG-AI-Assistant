@@ -239,6 +239,22 @@ class VectorStore {
   }
 
   // Search across both collections
+  // Get status of collections
+  getCollectionsStatus() {
+    return {
+      pages: {
+        documents: this.collections.pages.length,
+        embeddings: this.embeddings.pages.length,
+        lastUpdate: this.lastUpdateTime.pages
+      },
+      products: {
+        documents: this.collections.products.length,
+        embeddings: this.embeddings.products.length,
+        lastUpdate: this.lastUpdateTime.products
+      }
+    };
+  }
+
   async search(query, maxResults = 5) {
     console.log(`[${new Date().toISOString()}] Starting search for query: ${query}`);
     const startTime = Date.now();
