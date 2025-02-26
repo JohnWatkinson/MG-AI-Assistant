@@ -106,22 +106,73 @@ class VectorStore {
   async init() {
     // Create data directory if it doesn't exist
     const dataDir = path.join(__dirname, '..', 'data');
-    await fs.mkdir(dataDir, { recursive: true });
+    const embeddingsDir = path.join(dataDir, 'embeddings');
+    await fs.mkdir(embeddingsDir, { recursive: true });
 
     // Try to load existing embeddings
     try {
-      const pagesData = await fs.readFile(path.join(dataDir, 'pages_embeddings.json'), 'utf8');
-      const productsData = await fs.readFile(path.join(dataDir, 'products_embeddings.json'), 'utf8');
+      const pagesData = await fs.readFile(path.join(embeddingsDir, 'pages_embeddings.json'), 'utf8');
+      const productsData = await fs.readFile(path.join(embeddingsDir, 'products_embeddings.json'), 'utf8');
       
       const pages = JSON.parse(pagesData);
       const products = JSON.parse(productsData);
       
-      this.collections.pages = pages.documents;
-      this.collections.products = products.documents;
-      this.embeddings.pages = pages.embeddings;
-      this.embeddings.products = products.embeddings;
+      this.collections.pages = pages.map(item => ({
+        content: `${item.title}\n${item.meta_description || ''}\n${item.content || ''}`,
+        metadata: {
+          type: 'page',
+          url: item.url,
+          title: item.title,
+          keywords: item.keywords || '',
+        }
+      }));
+      
+      this.collections.products = products.map(item => ({
+        content: `${item.title}\n${item.description || ''}\nPrice: €${item.price}`,
+        metadata: {
+          type: 'product',
+          url: item.url,
+          title: item.title,
+          price: item.price,
+        }
+      }));
+      
+      this.embeddings.pages = pages.map(item => item.embedding);
+      this.embeddings.products = products.map(item => item.embedding);
+      
+      console.log(`Loaded ${this.collections.pages.length} pages and ${this.collections.products.length} products from embeddings files`);
     } catch (error) {
-      console.log('No existing embeddings found, will create new ones when data is added');
+      console.log('No existing embeddings found or error loading them:', error.message);
+      console.log('Will create new embeddings when data is added');
+      
+      // Try to load from JSON files and generate embeddings
+      try {
+        const jsonDir = path.join(dataDir, 'json');
+        const pagesPath = path.join(jsonDir, 'mg_site_pages_en.json');
+        const productsPath = path.join(jsonDir, 'mg_site_products_en.json');
+        
+        // Check if files exist
+        try {
+          await fs.access(pagesPath);
+          await fs.access(productsPath);
+          
+          // Load and process JSON files
+          const pagesJson = JSON.parse(await fs.readFile(pagesPath, 'utf8'));
+          const productsJson = JSON.parse(await fs.readFile(productsPath, 'utf8'));
+          
+          console.log(`Found JSON files. Processing ${pagesJson.length} pages and ${productsJson.length} products...`);
+          
+          // Update collections with the data
+          await this.updateCollection(pagesJson, 'pages');
+          await this.updateCollection(productsJson, 'products');
+          
+          console.log('Initial embedding generation complete');
+        } catch (fileError) {
+          console.log('JSON files not found or cannot be accessed:', fileError.message);
+        }
+      } catch (jsonError) {
+        console.log('Error processing JSON files:', jsonError.message);
+      }
     }
   }
 
@@ -132,15 +183,15 @@ class VectorStore {
       let metadata = {};
 
       if (type === 'pages') {
-        content = `${item.title}\n${item.meta_description}\n${item.content}`;
+        content = `${item.title}\n${item.meta_description || ''}\n${item.main_content || item.content || ''}`;
         metadata = {
           type: 'page',
           url: item.url,
           title: item.title,
-          keywords: item.keywords,
+          keywords: item.keywords || '',
         };
       } else if (type === 'products') {
-        content = `${item.title}\n${item.description}\nPrice: €${item.price}`;
+        content = `${item.title}\n${item.description || ''}\nPrice: €${item.price}`;
         metadata = {
           type: 'product',
           url: item.url,
@@ -225,8 +276,11 @@ class VectorStore {
 
     // Save to disk asynchronously
     const dataDir = path.join(__dirname, '..', 'data');
+    const embeddingsDir = path.join(dataDir, 'embeddings');
+    await fs.mkdir(embeddingsDir, { recursive: true });
+    
     fs.writeFile(
-      path.join(dataDir, `${type}_embeddings.json`),
+      path.join(embeddingsDir, `${type}_embeddings.json`),
       JSON.stringify({
         documents: documents,
         embeddings: embeddings,

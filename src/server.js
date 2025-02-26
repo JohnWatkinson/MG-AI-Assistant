@@ -2,7 +2,6 @@ require("dotenv").config({ path: require('path').resolve(__dirname, '../.env') }
 const express = require("express");
 const cors = require("cors");
 const { OpenAI } = require("openai");
-const { google } = require("googleapis");
 const vectorStore = require('./vectorStore');
 const fs = require('fs').promises;
 const path = require('path');
@@ -21,13 +20,17 @@ log('=== Server Starting ===');
 log(`Node Environment: ${process.env.NODE_ENV}`);
 log(`Port: ${port}`);
 log(`Current Directory: ${process.cwd()}`);
-log(`Google Credentials Path: ${process.env.MG_GOOGLE_CREDENTIALS}`);
 
-// Ensure data directory exists
-const dataDir = path.join(__dirname, '..', 'data', 'chromadb');
-fs.mkdir(dataDir, { recursive: true })
-  .then(() => log(`Created/verified data directory: ${dataDir}`))
-  .catch(err => log(`Error creating data directory: ${err.message}`));
+// Ensure data directories exist
+const jsonDir = path.join(__dirname, '..', 'data', 'json');
+const embeddingsDir = path.join(__dirname, '..', 'data', 'embeddings');
+
+Promise.all([
+  fs.mkdir(jsonDir, { recursive: true }),
+  fs.mkdir(embeddingsDir, { recursive: true })
+])
+  .then(() => log(`Created/verified data directories`))
+  .catch(err => log(`Error creating data directories: ${err.message}`));
 
 app.use(express.json());
 app.use(cors());
@@ -39,297 +42,174 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Initialize Google Drive API client
-const auth = new google.auth.GoogleAuth({
-  credentials: JSON.parse(Buffer.from(process.env.MG_GOOGLE_CREDENTIALS, 'base64').toString()),
-  scopes: [
-    "https://www.googleapis.com/auth/drive.readonly",
-    "https://www.googleapis.com/auth/drive.file",
-    "https://www.googleapis.com/auth/drive.metadata.readonly",
-  ],
-});
-
-const drive = google.drive({ version: "v3", auth });
-
-// Initialize vector store on startup
-let vectorStoreInitialized = false;
-let initializationStartTime = Date.now();
-let initializationError = null;
-
-// Function to log with timestamp
-function logWithTime(message) {
-  const timestamp = new Date().toISOString();
-  console.log(`[${timestamp}] ${message}`);
-}
-
 // Async initialization that won't block server startup
 log('Scheduling vector store initialization...');
 
 setTimeout(async () => {
   try {
-    log('🔄 Vector Store Initialization - START');
-    log('📊 Memory Before: ' + JSON.stringify(process.memoryUsage()));
-    log('📁 Data Directory: ' + dataDir);
-    
+    log('Initializing vector store...');
     await vectorStore.init();
-    vectorStoreInitialized = true;
+    log('Vector store initialized');
     
-    log('✅ Vector Store Initialization - COMPLETE');
-    log('📊 Memory After: ' + JSON.stringify(process.memoryUsage()));
-    log('⏱️ Init Time: ' + (Date.now() - initializationStartTime) + 'ms');
+    // Load knowledge base data
+    const knowledgeBase = await getKnowledgeBase();
     
-    // Log collections status
-    const collections = vectorStore.getCollectionsStatus();
-    log('📚 Collections: ' + JSON.stringify(collections));
+    // Update vector store with knowledge base data
+    if (knowledgeBase.pages_en) {
+      await vectorStore.updateCollection(knowledgeBase.pages_en, 'pages');
+    }
+    if (knowledgeBase.products_en) {
+      await vectorStore.updateCollection(knowledgeBase.products_en, 'products');
+    }
+    
+    log('Knowledge base loaded and vector store updated');
   } catch (error) {
-    log('❌ Vector Store Initialization - FAILED');
-    log('💥 Error: ' + error.message);
-    log('Stack: ' + error.stack);
-    initializationError = error;
+    log(`Error during initialization: ${error.message}`);
   }
 }, 1000);
 
-// Cache for knowledge base data
-let cachedKnowledgeBase = null;
-let lastKnowledgeBaseFetch = 0;
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+// Health check endpoint
+app.get("/health", (req, res) => {
+  res.json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || "development",
+  });
+});
 
-// Chatbot API endpoint
+// Chat endpoint
 app.post("/api/chat", async (req, res) => {
-  const startTime = Date.now();
   try {
-    const userMessage = req.body.message;
-    if (!userMessage) {
-      return res.status(400).json({ error: 'Message is required' });
-    }
-    console.log(`[${new Date().toISOString()}] Received user message:`, userMessage);
-
-    // Load knowledge base from cache or fetch if needed
-    const now = Date.now();
-    if (!cachedKnowledgeBase || (now - lastKnowledgeBaseFetch) > CACHE_TTL) {
-      console.log(`[${new Date().toISOString()}] Cache miss - fetching fresh knowledge base data...`);
-      try {
-        cachedKnowledgeBase = await getKnowledgeBase();
-        lastKnowledgeBaseFetch = now;
-        console.log(`[${new Date().toISOString()}] Successfully updated knowledge base cache`);
-      } catch (error) {
-        console.error(`[${new Date().toISOString()}] Error fetching knowledge base:`, error);
-        return res.status(500).json({ error: 'Failed to fetch knowledge base data' });
-      }
-    } else {
-      console.log(`[${new Date().toISOString()}] Using cached knowledge base data`);
-    }
-
-    // Update vector store if needed
-    try {
-      if (now - lastKnowledgeBaseFetch <= 1000) { // Only update if we just fetched new data
-        console.log(`[${new Date().toISOString()}] Updating vector store...`);
-        await vectorStore.updateCollection(cachedKnowledgeBase.pages_en, 'pages');
-        await vectorStore.updateCollection(cachedKnowledgeBase.products_en, 'products');
-        console.log(`[${new Date().toISOString()}] Vector store updated successfully`);
-      }
-    } catch (error) {
-      console.error(`[${new Date().toISOString()}] Error updating vector store:`, error);
-      return res.status(500).json({ error: 'Failed to update vector store' });
+    const { message } = req.body;
+    
+    if (!message) {
+      return res.status(400).json({ error: "Message is required" });
     }
     
-    // Search for relevant content
-    console.log(`[${new Date().toISOString()}] Searching for relevant content...`);
-    let searchResults;
-    try {
-      searchResults = await vectorStore.search(userMessage, 3);
-      console.log(`[${new Date().toISOString()}] Search completed successfully`);
-    } catch (error) {
-      console.error(`[${new Date().toISOString()}] Error searching vector store:`, error);
-      return res.status(500).json({ error: 'Failed to search for relevant content' });
-    }
+    log(`Received chat request: "${message.substring(0, 50)}${message.length > 50 ? '...' : ''}"`);
     
-    // Format relevant content for the prompt
-    const relevantPages = (searchResults.pages || [])
-      .map(doc => `${doc.metadata.title || 'Untitled'}: ${doc.pageContent || ''}`)
-      .filter(content => content.trim())
-      .join('\n');
+    // Search for relevant context
+    const searchResults = await vectorStore.search(message, 5);
     
-    const relevantProducts = (searchResults.products || [])
-      .map(doc => `${doc.metadata.title || 'Untitled'} (€${doc.metadata.price || 'N/A'}): ${doc.pageContent || ''}`)
-      .filter(content => content.trim())
-      .join('\n');
+    // Format context for the prompt
+    const pagesContext = searchResults.pages.map(result => {
+      return `Page: ${result.metadata.title}\nURL: ${result.metadata.url}\nContent: ${result.content}`;
+    });
+    
+    const productsContext = searchResults.products.map(result => {
+      return `Product: ${result.metadata.title}\nURL: ${result.metadata.url}\nPrice: €${result.metadata.price}\nDescription: ${result.content}`;
+    });
+    
+    const context = [...pagesContext, ...productsContext];
 
-    const prompt = `You are Clara, Maison Guida's friendly AI fashion consultant. You help customers discover our sustainable luxury fashion with warmth and expertise, like chatting with a friend who happens to be a fashion expert.
+    // Create system prompt
+    const systemPrompt = `You are an AI assistant for Maison Guida, a luxury fashion brand based in Italy. 
+You help customers with information about our products, brand, and services.
 
-Context about our brand:
-Maison Guida is a sustainable luxury fashion brand based in Turin, Italy. We are currently an online-only brand, creating timeless designs using ethical materials and believing in fair, transparent pricing that reflects the true value of sustainable fashion.
+Use the following information to answer the user's question:
+${context}
 
-Relevant information for this query:
-${relevantPages}
-${relevantProducts}
+If the information provided doesn't contain the answer, respond based on these guidelines:
 
-User question: ${userMessage}
+- Maison Guida is a luxury fashion brand founded in Italy
+- We specialize in handcrafted, sustainable luxury clothing
+- Our products are made with high-quality materials and traditional craftsmanship
+- We offer worldwide shipping
+- For specific product inquiries not covered in the context, suggest browsing our website or contacting our customer service
 
-Style guide:
-Speak naturally and warmly, as a knowledgeable fashion consultant. Avoid bullet points or structured formats like "Product: X, Price: Y". Instead, weave product details and prices (in EUR) into a flowing conversation that reflects our luxury brand experience.
-
-Example tone:
+Example response style:
 "I'd love to tell you about our dresses! The cocktail dress is a particular favorite - it's beautifully crafted in Italy and priced at €259. Each piece embodies our commitment to sustainable luxury fashion..."
 
 Keep responses warm, personal, and concise while maintaining professionalism. If unsure about anything, be honest and offer to connect them with our team.`;
 
     // OpenAI API call
-    console.log(`[${new Date().toISOString()}] Calling OpenAI API...`);
-    try {
-      const response = await openai.chat.completions.create({
-        model: "gpt-3.5-turbo",
-        messages: [
-          { role: "system", content: prompt },
-          { role: "user", content: userMessage }
-        ],
-        temperature: 0.8,
-        max_tokens: 300
-      });
-
-      const aiResponse = response.choices[0]?.message?.content;
-      if (!aiResponse) {
-        throw new Error('Empty response from OpenAI');
-      }
-
-      console.log(`[${new Date().toISOString()}] Received response from OpenAI`);
-      const totalTime = Date.now() - startTime;
-      console.log(`[${new Date().toISOString()}] Total request time: ${totalTime}ms`);
-      
-      res.json({ 
-        reply: aiResponse,
-        processingTime: totalTime
-      });
-    } catch (error) {
-      console.error(`[${new Date().toISOString()}] Error with OpenAI API:`, error);
-      res.status(500).json({ 
-        error: "Failed to fetch response from OpenAI",
-        details: error.message
-      });
-    }
+    const completion = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: message }
+      ],
+      temperature: 0.7,
+      max_tokens: 500,
+    });
+    
+    const reply = completion.choices[0].message.content;
+    log(`Generated response: "${reply.substring(0, 50)}${reply.length > 50 ? '...' : ''}"`);
+    
+    res.json({
+      reply,
+      sources: searchResults.pages.concat(searchResults.products).map(result => ({
+        title: result.metadata.title,
+        url: result.metadata.url,
+        type: result.metadata.type,
+      })),
+    });
   } catch (error) {
-    console.error(`[${new Date().toISOString()}] Unexpected error:`, error);
-    res.status(500).json({ 
-      error: "An unexpected error occurred",
-      details: error.message
-    });
+    log(`Error in chat endpoint: ${error.message}`);
+    res.status(500).json({ error: "An error occurred while processing your request" });
   }
 });
 
-// Welcome endpoint
-app.get("/", (req, res) => {
-  res.send("Welcome to the MG Chatbot API!");
-});
-
-// Simple health check that always returns 200
-app.get("/health", (req, res) => {
-  const timeElapsed = Date.now() - initializationStartTime;
-  res.status(200).json({ 
-    status: "healthy",
-    uptime: timeElapsed,
-    vectorStore: vectorStoreInitialized ? "initialized" : "initializing"
-  });
-});
-
-// Status endpoint for detailed health information
-app.get("/status", (req, res) => {
-  const timeElapsed = Date.now() - initializationStartTime;
-  
-  if (vectorStoreInitialized) {
-    res.status(200).json({ 
-      status: "healthy", 
-      vectorStore: "initialized",
-      uptime: timeElapsed,
-      collections: vectorStore.getCollectionsStatus()
-    });
-  } else if (initializationError) {
-    res.status(500).json({ 
-      status: "error", 
-      vectorStore: "failed",
-      error: initializationError.message,
-      uptime: timeElapsed
-    });
-  } else {
-    res.status(200).json({ 
-      status: "initializing", 
-      vectorStore: "pending",
-      uptime: timeElapsed
-    });
+// Status endpoint
+app.get("/api/status", async (req, res) => {
+  try {
+    const status = await vectorStore.getCollectionsStatus();
+    res.json(status);
+  } catch (error) {
+    log(`Error in status endpoint: ${error.message}`);
+    res.status(500).json({ error: "An error occurred while checking status" });
   }
 });
 
-// Example: Fetch data from Google Sheets
+// Get knowledge base from local JSON files
 async function getKnowledgeBase() {
   const knowledgeBase = {};
 
   try {
-    // Validate environment variables
-    if (!process.env.PAGES_JSON_ID) {
-      throw new Error("PAGES_JSON_ID environment variable is not set");
+    const jsonDir = path.join(__dirname, '..', 'data', 'json');
+    
+    // Check if directory exists
+    try {
+      await fs.access(jsonDir);
+    } catch (err) {
+      log(`Creating JSON directory: ${jsonDir}`);
+      await fs.mkdir(jsonDir, { recursive: true });
     }
-    if (!process.env.PRODUCTS_JSON_ID) {
-      throw new Error("PRODUCTS_JSON_ID environment variable is not set");
-    }
-
-    // File IDs for the JSON files in Google Drive
+    
+    // Define the files to load
     const files = [
-      {
-        id: process.env.PAGES_JSON_ID,
-        name: "mg_site_pages_en.json",
-        key: "pages_en",
-      },
-      {
-        id: process.env.PRODUCTS_JSON_ID,
-        name: "mg_site_products_en.json",
-        key: "products_en",
-      },
+      { name: "mg_site_pages_en.json", key: "pages_en" },
+      { name: "mg_site_products_en.json", key: "products_en" },
     ];
-
-    // Read each file from Google Drive
+    
+    // Read each file from the json directory
     for (const file of files) {
-      console.log(`Loading ${file.name} (ID: ${file.id})...`);
+      const filePath = path.join(jsonDir, file.name);
+      
       try {
-        // First check if we can access the file metadata
-        const metaResponse = await drive.files.get({
-          fileId: file.id,
-          fields: "id, name, mimeType",
-        });
-        console.log(`File metadata:`, metaResponse.data);
-
-        // Then get the file content
-        const response = await drive.files.get(
-          {
-            fileId: file.id,
-            alt: "media",
-          },
-          { responseType: "json" }
-        );
-
-        knowledgeBase[file.key] = response.data;
-        console.log(
-          `- ${file.name}: Loaded successfully (${
-            Array.isArray(response.data)
-              ? response.data.length
-              : Object.keys(response.data).length
-          } entries)`
-        );
+        // Check if file exists
+        await fs.access(filePath);
+        
+        // Read and parse the file
+        const data = await fs.readFile(filePath, 'utf8');
+        knowledgeBase[file.key] = JSON.parse(data);
+        
+        log(`Loaded ${file.name} successfully (${
+          Array.isArray(knowledgeBase[file.key])
+            ? knowledgeBase[file.key].length
+            : Object.keys(knowledgeBase[file.key]).length
+        } entries)`);
       } catch (fileError) {
-        console.error(`Error loading ${file.name}:`, fileError.message);
-        throw new Error(
-          `Failed to load ${file.name}. Please check the file ID and permissions.`
-        );
+        log(`Warning: ${file.name} not found or invalid. Using empty array.`);
+        knowledgeBase[file.key] = [];
       }
     }
-
-    // Validate that we have both required datasets
-    if (!knowledgeBase.pages_en || !knowledgeBase.products_en) {
-      throw new Error("Missing required knowledge base data");
-    }
-
+    
     return knowledgeBase;
   } catch (error) {
-    console.error("Error loading knowledge base:", error.message);
-    throw error;
+    log(`Error loading knowledge base: ${error.message}`);
+    // Return empty knowledge base rather than failing
+    return { pages_en: [], products_en: [] };
   }
 }
 
@@ -340,26 +220,8 @@ app.use((err, req, res, next) => {
 });
 
 // Start the server
-const server = // Start the server
 app.listen(port, () => {
-  log('🚀 Server Started Successfully');
-  log(`🌐 Server URL: http://localhost:${port}`);
-  log(`🔑 API Keys Status:`);
-  log(`   - OpenAI: ${process.env.OPENAI_API_KEY ? '✅ Present' : '❌ Missing'}`);
-  log(`   - Google: ${process.env.MG_GOOGLE_CREDENTIALS ? '✅ Present' : '❌ Missing'}`);
-  log('⚡ Ready to handle requests');
-});
-
-// Handle server errors
-server.on('error', (error) => {
-  console.error('Server error:', error);
-});
-
-// Handle uncaught exceptions
-process.on('uncaughtException', (error) => {
-  console.error('Uncaught exception:', error);
-});
-
-process.on('unhandledRejection', (error) => {
-  console.error('Unhandled rejection:', error);
+  log(`Server listening on port ${port}`);
+  log(`API available at: http://localhost:${port}/api/chat`);
+  log(`Health check: http://localhost:${port}/health`);
 });
