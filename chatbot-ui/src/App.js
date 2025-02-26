@@ -3,6 +3,7 @@ import axios from "axios";
 import ReactMarkdown from "react-markdown";
 import { IoChatbubbleEllipsesOutline } from "react-icons/io5";
 import { IoMdClose } from "react-icons/io";
+import { IoMdRemove } from "react-icons/io";
 import "./App.css";
 
 const API_URL = process.env.NODE_ENV === "production"
@@ -69,9 +70,24 @@ function App() {
     <div className="chat-window">
       <div className="chat-header">
         <h2>Maison Guida AI Assistant</h2>
-        <button className="close-button" onClick={() => setIsOpen(false)}>
-          <IoMdClose size={24} />
-        </button>
+        <div className="window-controls">
+          <button className="minimize-button" onClick={() => setIsOpen(false)} title="Minimize">
+            <IoMdRemove size={24} />
+          </button>
+          <button 
+            className="close-button" 
+            onClick={() => {
+              setIsOpen(false);
+              setMessages([{
+                role: 'assistant',
+                content: 'Hi, how can I help you? 👋\n\nCiao, come posso aiutarti? 🇮🇹\n\nHola, ¿cómo puedo ayudarte? 🇪🇸\n\nBonjour, comment puis-je vous aider? 🇫🇷\n\nHallo, wie kann ich Ihnen helfen? 🇩🇪'
+              }]);
+            }} 
+            title="End chat"
+          >
+            <IoMdClose size={24} />
+          </button>
+        </div>
       </div>
 
       <div className="messages-container">

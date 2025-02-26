@@ -59,6 +59,12 @@
   font-family: 'Playfair Display', serif;
 }
 
+.window-controls {
+  display: flex;
+  gap: 5px;
+}
+
+.minimize-button,
 .close-button {
   background: none;
   border: none;
@@ -69,10 +75,12 @@
   align-items: center;
   justify-content: center;
   transition: opacity 0.2s;
+  border-radius: 4px;
 }
 
+.minimize-button:hover,
 .close-button:hover {
-  opacity: 0.8;
+  background-color: rgba(255, 255, 255, 0.1);
 }
 
 /* Messages Container */
