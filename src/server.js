@@ -104,10 +104,15 @@ app.post("/api/chat", async (req, res) => {
 
     // Create system prompt
     const systemPrompt = `You are an AI assistant for Maison Guida, a luxury fashion brand based in Italy. 
-You help customers with information about our products, brand, and services.
+You help customers with information about our products, brand, services, and contact details.
 
 Use the following information to answer the user's question:
 ${context}
+
+For contact information queries:
+- Always check for and share both phone and WhatsApp numbers if available
+- Clearly label each contact method (e.g. "WhatsApp:", "Phone:", "Email:")
+- If a specific contact method is asked for but not found, suggest alternative contact methods
 
 If the information provided doesn't contain the answer, respond based on these guidelines:
 

@@ -224,9 +224,8 @@ PORT=3000
 ### Prerequisites
 
 1. Node.js and npm installed
-2. Google Cloud project with Drive API enabled
-3. OpenAI API key
-4. Google Drive JSON files for content
+2. OpenAI API key
+3. Local JSON files for content
 
 ### Installation
 
@@ -237,13 +236,6 @@ npm install
 # Create necessary directories
 mkdir -p data/chromadb
 ```
-
-### Google Drive Setup
-
-1. Create a service account in Google Cloud Console
-2. Download the credentials JSON file
-3. Share your content JSON files with the service account email
-4. Update `.env` with the file IDs
 
 ## Running the Application
 

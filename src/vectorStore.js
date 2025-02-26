@@ -350,7 +350,7 @@ class VectorStore {
 
       // Use partial sort for better performance with large datasets
       const topK = similarities
-        .filter(item => item.similarity > 0.7) // Pre-filter to reduce sorting load
+        .filter(item => item.similarity > 0.5) // Pre-filter to reduce sorting load
         .sort((a, b) => b.similarity - a.similarity)
         .slice(0, maxResults);
 

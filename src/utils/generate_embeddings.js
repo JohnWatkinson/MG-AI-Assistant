@@ -60,7 +60,7 @@ async function processPages() {
     console.log(`Processing ${pages.length} pages...`);
     
     for (const page of pages) {
-      const textToEmbed = `${page.title} ${page.meta_description || ''} ${page.content || ''}`;
+      const textToEmbed = `${page.title} ${page.meta_description || ''} ${page.main_content || ''}`;
       console.log(`Generating embedding for: ${page.title}`);
       
       const embedding = await generateEmbedding(textToEmbed);
