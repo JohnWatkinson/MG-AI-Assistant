@@ -16,13 +16,7 @@
   height: 50px;
 }
 
-.chat-container.minimized {
-  width: auto;
-  height: auto;
-}
-
 .chat-container.minimized .chat-icon {
-  position: relative;
   z-index: 999999;
 }
 
