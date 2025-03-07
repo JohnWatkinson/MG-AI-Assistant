@@ -58,73 +58,73 @@ function App() {
     }
   };
 
-  if (!isOpen) {
-    return (
-      <div className="chat-icon" onClick={() => setIsOpen(true)}>
-        <IoChatbubbleEllipsesOutline size={24} />
-      </div>
-    );
-  }
-
   return (
-    <div className="chat-window">
-      <div className="chat-header">
-        <h2>Maison Guida AI Assistant</h2>
-        <div className="window-controls">
-          <button className="minimize-button" onClick={() => setIsOpen(false)} title="Minimize">
-            <IoMdRemove size={24} />
-          </button>
-          <button 
-            className="close-button" 
-            onClick={() => {
-              setIsOpen(false);
-              setMessages([{
-                role: 'assistant',
-                content: 'Hi, how can I help you? 👋\n\nCiao, come posso aiutarti? 🇮🇹\n\nHola, ¿cómo puedo ayudarte? 🇪🇸\n\nBonjour, comment puis-je vous aider? 🇫🇷\n\nHallo, wie kann ich Ihnen helfen? 🇩🇪'
-              }]);
-            }} 
-            title="End chat"
-          >
-            <IoMdClose size={24} />
-          </button>
+    <div className={`chat-container ${!isOpen ? 'minimized' : ''}`}>
+      {!isOpen ? (
+        <div className="chat-icon" onClick={() => setIsOpen(true)}>
+          <IoChatbubbleEllipsesOutline size={24} />
         </div>
-      </div>
-
-      <div className="messages-container">
-        {messages.map((msg, index) => (
-          <div
-            key={index}
-            className={`message ${msg.role === "user" ? "user" : "assistant"}`}
-          >
-            <ReactMarkdown>{msg.content}</ReactMarkdown>
+      ) : (
+        <div className="chat-window">
+          <div className="chat-header">
+            <h2>Maison Guida AI Assistant</h2>
+            <div className="window-controls">
+              <button className="minimize-button" onClick={() => setIsOpen(false)} title="Minimize">
+                <IoMdRemove size={24} />
+              </button>
+              <button 
+                className="close-button" 
+                onClick={() => {
+                  setIsOpen(false);
+                  setMessages([{
+                    role: 'assistant',
+                    content: 'Hi, how can I help you? 👋\n\nCiao, come posso aiutarti? 🇮🇹\n\nHola, ¿cómo puedo ayudarte? 🇪🇸\n\nBonjour, comment puis-je vous aider? 🇫🇷\n\nHallo, wie kann ich Ihnen helfen? 🇩🇪'
+                  }]);
+                }} 
+                title="End chat"
+              >
+                <IoMdClose size={24} />
+              </button>
+            </div>
           </div>
-        ))}
-        {isTyping && (
-          <div className="message assistant typing">
-            <span className="dot"></span>
-            <span className="dot"></span>
-            <span className="dot"></span>
-          </div>
-        )}
-        <div ref={messagesEndRef} />
-      </div>
 
-      <div className="input-container">
-        <textarea
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyPress={handleKeyPress}
-          placeholder="Type a message..."
-          rows="1"
-        />
-        <button 
-          className="send-button" 
-          onClick={sendMessage}
-          disabled={!input.trim() || isTyping}
-        >
-          Send
-        </button>
-      </div>
+          <div className="messages-container">
+            {messages.map((msg, index) => (
+              <div
+                key={index}
+                className={`message ${msg.role === "user" ? "user" : "assistant"}`}
+              >
+                <ReactMarkdown>{msg.content}</ReactMarkdown>
+              </div>
+            ))}
+            {isTyping && (
+              <div className="message assistant typing">
+                <span className="dot"></span>
+                <span className="dot"></span>
+                <span className="dot"></span>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          <div className="input-container">
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Type a message..."
+              rows="1"
+            />
+            <button 
+              className="send-button" 
+              onClick={sendMessage}
+              disabled={!input.trim() || isTyping}
+            >
+              Send
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
