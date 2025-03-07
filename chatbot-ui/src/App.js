@@ -12,6 +12,16 @@ const API_URL = process.env.NODE_ENV === "production"
 
 function App() {
   const [isOpen, setIsOpen] = useState(false);
+
+  // Notify parent window when chatbot state changes
+  useEffect(() => {
+    if (window.parent !== window) {
+      window.parent.postMessage(
+        isOpen ? 'chatbot-expanded' : 'chatbot-minimized',
+        '*'
+      );
+    }
+  }, [isOpen]);
   const [messages, setMessages] = useState([{
     role: 'assistant',
     content: 'Hi, how can I help you? 👋\n\nCiao, come posso aiutarti? 🇮🇹\n\nHola, ¿cómo puedo ayudarte? 🇪🇸\n\nBonjour, comment puis-je vous aider? 🇫🇷\n\nHallo, wie kann ich Ihnen helfen? 🇩🇪'
