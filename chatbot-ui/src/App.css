@@ -28,7 +28,7 @@
   height: 50px;
   background-color: #eb5e1d;
   border-radius: 50%;
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
   cursor: pointer;
@@ -39,8 +39,10 @@
   bottom: 0;
   right: 0;
   z-index: 1000000;
-  opacity: 1 !important;
-  visibility: visible !important;
+}
+
+.chat-container.minimized .chat-icon {
+  display: flex;
 }
 
 .chat-icon:hover {
