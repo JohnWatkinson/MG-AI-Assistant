@@ -69,11 +69,12 @@ function App() {
   };
 
   return (
-    <div className={`chat-container ${!isOpen ? 'minimized' : ''}`}>
-      <div className="chat-icon" onClick={() => setIsOpen(true)}>
-        <IoChatbubbleEllipsesOutline size={24} />
-      </div>
-      {isOpen && (
+    <>
+      <div className={`chat-container ${!isOpen ? 'minimized' : ''}`}>
+        <div className="chat-icon" onClick={() => setIsOpen(true)}>
+          <IoChatbubbleEllipsesOutline size={24} />
+        </div>
+        {isOpen && (
         <div className="chat-window">
           <div className="chat-header">
             <h2>Maison Guida AI Assistant</h2>

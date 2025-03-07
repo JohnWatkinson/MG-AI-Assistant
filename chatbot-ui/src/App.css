@@ -7,16 +7,19 @@
   bottom: 100px;
   right: 20px;
   z-index: 999999;
+  width: 380px;
+  height: 600px;
+  pointer-events: all;
 }
 
 .chat-container.minimized {
   width: 50px;
   height: 50px;
+  pointer-events: none;
 }
 
-.chat-container:not(.minimized) {
-  width: 380px;
-  height: 600px;
+.chat-container.minimized .chat-icon {
+  pointer-events: all;
 }
 
 /* Chat Icon */
@@ -36,6 +39,8 @@
   bottom: 0;
   right: 0;
   z-index: 1000000;
+  opacity: 1 !important;
+  visibility: visible !important;
 }
 
 .chat-icon:hover {
