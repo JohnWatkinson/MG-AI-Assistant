@@ -11,13 +11,7 @@ const API_URL = process.env.NODE_ENV === "production"
   : "http://localhost:3002";
 
 function App() {
-  const [isOpen, setIsOpen] = useState(true);
-
-  // Auto-minimize on mount
-  useEffect(() => {
-    const timer = setTimeout(() => setIsOpen(false), 100);
-    return () => clearTimeout(timer);
-  }, []);
+  const [isOpen, setIsOpen] = useState(false);
 
   // Notify parent window when chatbot state changes
   useEffect(() => {
