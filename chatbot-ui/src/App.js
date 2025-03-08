@@ -13,6 +13,18 @@ const API_URL = process.env.NODE_ENV === "production"
 function App() {
   const [isOpen, setIsOpen] = useState(false);
 
+  // Handle messages from parent window
+  useEffect(() => {
+    const handleMessage = (event) => {
+      if (event.data === 'chatbot-minimized') {
+        setIsOpen(false);
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
   // Notify parent window when chatbot state changes
   useEffect(() => {
     if (window.parent !== window) {
@@ -22,6 +34,19 @@ function App() {
       );
     }
   }, [isOpen]);
+
+  // Stop event propagation when chat window is open
+  useEffect(() => {
+    const handlePropagation = (e) => {
+      if (isOpen) {
+        e.stopPropagation();
+      }
+    };
+
+    document.addEventListener('click', handlePropagation, true);
+    return () => document.removeEventListener('click', handlePropagation, true);
+  }, [isOpen]);
+
   const [messages, setMessages] = useState([{
     role: 'assistant',
     content: 'Hi, how can I help you? 👋\n\nCiao, come posso aiutarti? 🇮🇹\n\nHola, ¿cómo puedo ayudarte? 🇪🇸\n\nBonjour, comment puis-je vous aider? 🇫🇷\n\nHallo, wie kann ich Ihnen helfen? 🇩🇪'
