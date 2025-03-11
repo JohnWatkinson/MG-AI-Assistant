@@ -1,0 +1,14 @@
+<!-- MG AI Assistant Chatbot -->
+<script type="text/javascript">
+  (function(d, t) {
+    var v = d.createElement(t), s = d.getElementsByTagName(t)[0];
+    v.onload = function() {
+      if (window.MGChatWidget && typeof window.MGChatWidget.load === 'function') {
+        window.MGChatWidget.load({});
+      }
+    };
+    v.src = "https://mg-ai-assistant.vercel.app/widget.js";
+    v.type = "text/javascript";
+    s.parentNode.insertBefore(v, s);
+  })(document, 'script');
+</script>

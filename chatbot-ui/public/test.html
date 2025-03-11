@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>MG Chatbot Widget Test</title>
+</head>
+<body>
+    <h1>Testing MG Chatbot Widget</h1>
+    
+    <!-- MG AI Assistant Chatbot -->
+    <script type="text/javascript">
+      (function(d, t) {
+        var v = d.createElement(t), s = d.getElementsByTagName(t)[0];
+        v.onload = function() {
+          if (window.MGChatWidget && typeof window.MGChatWidget.load === 'function') {
+            window.MGChatWidget.load({});
+          }
+        };
+        v.src = "/widget.js"; // Using local path instead of production URL
+        v.type = "text/javascript";
+        s.parentNode.insertBefore(v, s);
+      })(document, 'script');
+    </script>
+</body>
+</html>

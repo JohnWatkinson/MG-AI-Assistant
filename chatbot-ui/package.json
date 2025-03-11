@@ -13,7 +13,8 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build",
+    "build": "react-scripts build && webpack --config webpack.widget.config.js",
+    "build:widget": "webpack --config webpack.widget.config.js",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
@@ -34,5 +35,16 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "@babel/core": "^7.26.10",
+    "@babel/preset-env": "^7.26.9",
+    "@babel/preset-react": "^7.26.3",
+    "babel-loader": "^10.0.0",
+    "css-loader": "^7.1.2",
+    "style-loader": "^4.0.0",
+    "terser-webpack-plugin": "^5.3.14",
+    "webpack": "^5.98.0",
+    "webpack-cli": "^6.0.1"
   }
 }
