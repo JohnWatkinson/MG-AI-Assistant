@@ -40,6 +40,23 @@
   overflow: hidden;
 }
 
+/* Mobile Adjustments */
+@media (max-width: 768px) {
+  .chat-window {
+    width: 304px;  /* 380px * 0.8 = 304px */
+    height: 480px; /* 600px * 0.8 = 480px */
+    bottom: 80px;  /* Also reduce bottom spacing */
+    right: 16px;   /* Also reduce right spacing */
+  }
+  
+  .chat-icon {
+    bottom: 80px;
+    right: 16px;
+    width: 40px;   /* Also reduce icon size */
+    height: 40px;
+  }
+}
+
 /* Header */
 .chat-header {
   background-color: #24373e;
