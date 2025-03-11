@@ -41,7 +41,7 @@
 }
 
 /* Mobile Adjustments */
-@media screen and (max-width: 1200px) {
+@media screen and (max-device-width: 1080px), screen and (max-width: 768px) {
   .chat-window {
     width: 304px;  /* 380px * 0.8 = 304px */
     height: 480px; /* 600px * 0.8 = 480px */
