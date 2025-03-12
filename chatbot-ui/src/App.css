@@ -47,7 +47,7 @@
     max-width: 320px;
     height: 75vh; /* 75% of viewport height */
     max-height: 500px;
-    transform: translateY(-150px); /* Move up by 150px */
+    transform: translateY(-50px); /* Move up by 50px */
     bottom: 100px;
     right: 12px;
     font-size: 14px;
@@ -58,7 +58,7 @@
   }
   
   .chat-icon {
-    transform: translateY(-150px); /* Move up by 150px */
+    transform: translateY(-50px); /* Move up by 50px */
     bottom: 100px;
     right: 16px;
     width: 40px;
