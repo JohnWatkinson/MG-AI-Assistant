@@ -41,13 +41,14 @@
 }
 
 /* Mobile Adjustments */
-@media only screen and (max-width: 1080px), only screen and (orientation: portrait) {
+@media screen and (max-device-width: 1080px) {
   .chat-window {
     width: 85vw;  /* 85% of viewport width */
-    max-width: 320px; /* increased max-width too */
+    max-width: 320px;
     height: 75vh; /* 75% of viewport height */
-    max-height: 500px; /* increased max-height too */
-    bottom: 30vh;  /* Using viewport height for positioning */
+    max-height: 500px;
+    transform: translateY(-200px); /* Move up by 200px */
+    bottom: 100px;
     right: 12px;
     font-size: 14px;
   }
@@ -57,7 +58,8 @@
   }
   
   .chat-icon {
-    bottom: 30vh;  /* Using viewport height for positioning */
+    transform: translateY(-200px); /* Move up by 200px */
+    bottom: 100px;
     right: 16px;
     width: 40px;
     height: 40px;
