@@ -43,10 +43,15 @@
 /* Mobile Adjustments */
 @media screen and (max-device-width: 1080px), screen and (max-width: 768px) {
   .chat-window {
-    width: 304px;  /* 380px * 0.8 = 304px */
-    height: 480px; /* 600px * 0.8 = 480px */
-    bottom: 80px;  /* Also reduce bottom spacing */
-    right: 16px;   /* Also reduce right spacing */
+    width: 243px;  /* 304px * 0.8 = 243px */
+    height: 384px; /* 480px * 0.8 = 384px */
+    bottom: 70px;  /* Further reduce spacing */
+    right: 12px;   /* Further reduce spacing */
+    font-size: 14px; /* Make text a bit smaller too */
+  }
+  
+  .chat-header h2 {
+    font-size: 1rem; /* Smaller header text */
   }
   
   .chat-icon {
