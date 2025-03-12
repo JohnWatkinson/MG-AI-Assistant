@@ -47,7 +47,7 @@
     max-width: 320px; /* increased max-width too */
     height: 75vh; /* 75% of viewport height */
     max-height: 500px; /* increased max-height too */
-    bottom: 120px;  /* Moved up */
+    bottom: 180px;  /* Moved way up on mobile to clear cookie popup */
     right: 12px;
     font-size: 14px;
   }
@@ -57,7 +57,7 @@
   }
   
   .chat-icon {
-    bottom: 120px;  /* Moved up to match window */
+    bottom: 180px;  /* Moved way up on mobile to clear cookie popup */
     right: 16px;
     width: 40px;
     height: 40px;
