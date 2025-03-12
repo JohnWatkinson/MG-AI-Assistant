@@ -43,6 +43,46 @@ This architecture enables the chatbot to:
 - **React Components:**
   - `App.js`: Main chat interface
   - `index.js`: Application entry point
+  - `widget.js`: Embeddable widget entry point
+
+### Embedding Options
+
+The chatbot can be embedded in two ways:
+
+1. **Direct React Integration**
+   - Import and use the React components directly
+   - Best for React-based websites
+
+2. **Widget Script (Recommended)**
+   - Add a simple script tag to any website
+   - Handles all initialization and styling
+   - Prevents event propagation issues
+   - Responsive design with mobile optimization
+
+```html
+<!-- MG AI Assistant Chatbot -->
+<script type="text/javascript">
+  (function(d, t) {
+    var v = d.createElement(t), s = d.getElementsByTagName(t)[0];
+    v.onload = function() {
+      if (window.MGChatWidget && typeof window.MGChatWidget.load === 'function') {
+        window.MGChatWidget.load({});
+      }
+    };
+    v.src = "https://mg-ai-assistant.vercel.app/widget.js";
+    v.type = "text/javascript";
+    s.parentNode.insertBefore(v, s);
+  })(document, 'script');
+</script>
+```
+
+#### Mobile Optimization
+
+The widget is optimized for mobile devices with:
+- Responsive sizing (85% viewport width, 75% viewport height)
+- Adjusted positioning to avoid overlapping with cookie notices
+- Touch-friendly interface
+- Proper event handling on mobile browsers
 
 ## Data Structure
 
