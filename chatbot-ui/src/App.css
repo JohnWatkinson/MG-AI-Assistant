@@ -41,13 +41,13 @@
 }
 
 /* Mobile Adjustments */
-@media screen and (max-device-width: 1080px), screen and (max-width: 768px) {
+@media only screen and (max-width: 1080px), only screen and (orientation: portrait) {
   .chat-window {
     width: 85vw;  /* 85% of viewport width */
     max-width: 320px; /* increased max-width too */
     height: 75vh; /* 75% of viewport height */
     max-height: 500px; /* increased max-height too */
-    bottom: 180px;  /* Moved way up on mobile to clear cookie popup */
+    bottom: 30vh;  /* Using viewport height for positioning */
     right: 12px;
     font-size: 14px;
   }
@@ -57,7 +57,7 @@
   }
   
   .chat-icon {
-    bottom: 180px;  /* Moved way up on mobile to clear cookie popup */
+    bottom: 30vh;  /* Using viewport height for positioning */
     right: 16px;
     width: 40px;
     height: 40px;
